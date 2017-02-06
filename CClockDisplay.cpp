@@ -1,34 +1,35 @@
 #include "CClockDisplay.h"
+#include "GlobalsAndDefines.h"
 
 /*
- * Based on https://github.com/thomsmits/wordclock
- * 
- * Copyright (c) 2012 Thomas Smits
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
- * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all copies or substantial portions
- * of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
- * TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
- * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- * 
- */
+   Based on https://github.com/thomsmits/wordclock
+
+   Copyright (c) 2012 Thomas Smits
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+   documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+   the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+   and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all copies or substantial portions
+   of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+   TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+   THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+   CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+*/
 
 /**
   Positions of the text on the LED panel.
-  
+
   As the Arduino programming language cannot determine
   the length of an array that is passed to a function
   as a pointer, a -1 at the end of the array indicates the
   end of the array.
-  
+
   The values of the array have to be <= NUMBER_OF_LEDS - 1.
 */
 const int ES[]      = { 0, 1, -1 };
@@ -56,30 +57,28 @@ const int ZWOELF[]  = { 49, 50, 51, 52, 53, -1 };
 const int ZEHN[]    = { 93, 94, 95, 96, -1 };
 const int UHR[]     = { 99, 100, 101, -1 };
 const int NEUN[]    = { 81, 82, 83, 84, -1 };
-#ifdef SMALLCLOCK
-const int MIN1[]    = { 112, -1 };
-const int MIN2[]    = { 112, 113, -1 };
-const int MIN3[]    = { 112, 113, 114, -1 };
-const int MIN4[]    = { 112, 113, 114, 115, -1 };
-#else
+// for small clock
+const int MIN1_S[]    = { 112, -1 };
+const int MIN2_S[]    = { 112, 113, -1 };
+const int MIN3_S[]    = { 112, 113, 114, -1 };
+const int MIN4_S[]    = { 112, 113, 114, 115, -1 };
+// for big clock
 const int MIN1[]    = { 121, -1 };
 const int MIN2[]    = { 121, 120, -1 };
 const int MIN3[]    = { 121, 120, 110, -1 };
 const int MIN4[]    = { 121, 120, 110, 119, -1 };
-#endif
+
 const int DST[]     = { 109, -1};
 
 
-
-
-CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_currentMinute(-1), m_pTZ(0)
+CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi)
 {
-  
+
 }
 
 CClockDisplay::~CClockDisplay()
 {
-  
+
 }
 
 bool CClockDisplay::setup(CRGB* leds, int numLEDs)
@@ -87,16 +86,32 @@ bool CClockDisplay::setup(CRGB* leds, int numLEDs)
   m_pLEDs = leds;
   m_numLEDs = numLEDs;
 
+  serialTrace.Log(T_DEBUG, "CClockDisplay::setup - initialized for BIG CLOCK");
+  serialTrace.Log(T_DEBUG, "CClockDisplay::setup - Number of LEDs = %d", m_numLEDs);
+
+  return true;
+}
+
+bool CClockDisplay::setup_small(CRGB* leds, int numLEDs)
+{
+  m_pLEDs = leds;
+  m_numLEDs = numLEDs;
+
+  serialTrace.Log(T_DEBUG, "CClockDisplay::setup - initialized for SMALL CLOCK");
+  serialTrace.Log(T_DEBUG, "CClockDisplay::setup - Number of LEDs = %d", m_numLEDs);
+
+  m_bSmallClock = true;
+
   return true;
 }
 
 bool CClockDisplay::update(bool force)
 {
-  if(m_currentMinute != minute() || true == force)
+  if (m_currentMinute != minute() || true == force)
   {
     time_t utc(now());
     fill_solid( &(m_pLEDs[0]), m_numLEDs, CRGB::Black);
-    
+
     compose(ES);
     compose(IST);
 
@@ -105,7 +120,7 @@ bool CClockDisplay::update(bool force)
     //    compose(DST);
     //  }
 
-    time_t local(0==m_pTZ?utc:m_pTZ->toLocal(utc));
+    time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
     display_time(hour(local), minute(local));
 
     m_currentMinute = minute();
@@ -118,7 +133,7 @@ bool CClockDisplay::update(bool force)
 
 CRGB CClockDisplay::getColor()
 {
-  return(m_color);
+  return (m_color);
 }
 
 void CClockDisplay::setColor(const CRGB& color)
@@ -131,45 +146,70 @@ void CClockDisplay::setTimezone(Timezone* pTZ)
   m_pTZ = pTZ;
 }
 
-/** 
- Sets the bits in resultArray depending on the values of the 
- arrayToAdd. Bits already set in the input array will not
- be set to zero.
- 
- WARNING: this function does not perform any bounds checks!
- 
- @param arrayToAdd Array containing the bits to be set as 
+void CClockDisplay::SetDialect(eDialect dia)
+{
+  m_bDialect = dia;
+}
+
+CClockDisplay::eDialect CClockDisplay::GetDialect()
+{
+  return m_bDialect;
+}
+
+bool CClockDisplay::IsWessiDialect ()
+{
+  return (eD_Wessi == m_bDialect) ? true : false;
+}
+
+bool CClockDisplay::IsOssiDialect ()
+{
+  return (eD_Ossi == m_bDialect) ? true : false;
+}
+
+bool CClockDisplay::IsRheinRuhrDialect ()
+{
+  return (eD_RheinRuhr == m_bDialect) ? true : false;
+}
+
+/**
+  Sets the bits in resultArray depending on the values of the
+  arrayToAdd. Bits already set in the input array will not
+  be set to zero.
+
+  WARNING: this function does not perform any bounds checks!
+
+  @param arrayToAdd Array containing the bits to be set as
         index of the bit. The value 5 for example implies
         that the 6th bit in the resultArray has to be set to 1.
         This array has to be terminated by -1.
- 
- @param (out) ledBits Array where the bits will be set according
+
+  @param (out) ledBits Array where the bits will be set according
         to the input array. The ledBits has to be big enough to
         accomodate the indices provided in arrayToAdd.
-*/        
+*/
 void CClockDisplay::compose(const int arrayToAdd[]) {
   int pos;
   int i = 0;
-    
+
   while ((pos = arrayToAdd[i++]) != -1) {
     m_pLEDs[pos] = m_color;
   }
 }
 
 /**
- Sets the hour information for the clock.
- 
- @param hour the hour to be set
- @param (out) ledBits array to set led bits
+  Sets the hour information for the clock.
+
+  @param hour the hour to be set
+  @param (out) ledBits array to set led bits
 */
 void CClockDisplay::display_hour(const int displayHour, const int minute, const int hour) {
-  
+
   int hourAMPM = displayHour;
-  
-//  if (hour >= 12) {
-//    compose(PM, ledBits);
-//  }
-  
+
+  //  if (hour >= 12) {
+  //    compose(PM, ledBits);
+  //  }
+
   if (displayHour >= 12) {
     hourAMPM -= 12;
   }
@@ -179,66 +219,66 @@ void CClockDisplay::display_hour(const int displayHour, const int minute, const 
   Serial.print(hour);
   Serial.print(", hourAMPM=");
   Serial.print(hourAMPM);
-  
-  
+
+
   switch (hourAMPM) {
-    
+
     case 0: compose(ZWOELF);
-        break;
-        
-    case 1: 
-        if (minute == 0) {
-          compose(EIN);
-        }
-        else {
-          compose(EINS);
-        }
-        break;
+      break;
+
+    case 1:
+      if (minute == 0) {
+        compose(EIN);
+      }
+      else {
+        compose(EINS);
+      }
+      break;
 
     case 2: compose(ZWEI);
-        break;
-        
+      break;
+
     case 3: compose(DREI);
-        break;
-        
+      break;
+
     case 4: compose(VIER);
-        break;
-        
+      break;
+
     case 5: compose(FUENF);
-        break;
-        
+      break;
+
     case 6: compose(SECHS);
-        break;
-        
+      break;
+
     case 7: compose(SIEBEN);
-        break;
-        
+      break;
+
     case 8: compose(ACHT);
-        break;
-        
+      break;
+
     case 9: compose(NEUN);
-        break;
-        
+      break;
+
     case 10: compose(ZEHN);
-        break;
-        
+      break;
+
     case 11: compose(ELF);
-        break;
-        
+      break;
+
     case 12: compose(ZWOELF);
-        break;
-  }  
+      break;
+  }
 }
 
 /**
   Displays hour and minutes on the LED panel.
-  
+
   @param hour the hour to be set
   @param minute the minute to be set
   @param (out) ledBits bits for the LEDs (will NOT be cleared)
 */
 void CClockDisplay::display_time(const int hour, const int minute) {
- 
+
   int roundMinute = (minute / 5) * 5;
   int minutesRemaining = minute - roundMinute;
 
@@ -247,113 +287,176 @@ void CClockDisplay::display_time(const int hour, const int minute) {
   Serial.print(roundMinute);
   Serial.print(" minutesRemaining=");
   Serial.print(minutesRemaining);
-  
+
   int displayHour = hour;
-  
+
   switch (roundMinute) {
-    case 0: compose(UHR);
-        Serial.print(", case 0");
-        break;
-    
-    case 5: compose(FUENF_M);
-        compose(NACH);
-        Serial.print(", case 5");
-        break;
-        
-    case 10: compose(ZEHN_M);
-        compose(NACH);
-        Serial.print(", case 10");
-        break;
+    case 0:
+      compose(UHR);
+      Serial.print(", case 0");
+      break;
 
-#ifdef SOUTH_GERMAN_VERSION
-    case 15: compose(VIERTEL);
+    case 5:
+      compose(FUENF_M);
+      compose(NACH);
+      Serial.print(", case 5 ");
+      break;
+
+    case 10:
+      compose(ZEHN_M);
+      compose(NACH);
+      Serial.print(", case 10");
+      break;
+
+    case 15:
+      if (IsOssiDialect())
+      {
+        compose(VIERTEL);
         displayHour++;
-        Serial.print(", case 15-sg");
-        break;
-#else
-    case 15: compose(VIERTEL);
+        Serial.print(", case 15-o");
+      }
+      else
+      {
+        compose(VIERTEL);
         compose(NACH);
-        Serial.print(", case 15-!nsg");
-        break;
-#endif
+        Serial.print(", case 15-!o");
+      }
+      break;
 
-    case 20: compose(ZWANZIG);
-        compose(NACH);
-        Serial.print(", case 20");
-        break;
-
-    case 25: compose(FUENF_M);
+    case 20:
+      if (IsWessiDialect() || IsOssiDialect())
+      {
+        compose(ZEHN);
         compose(VOR);
         compose(HALB);
         displayHour++;
-        Serial.print(", case 25");
-        break;
-        
-    case 30: compose(HALB);
-        displayHour++;
-        Serial.print(", case 30");
-        break;
-        
-    case 35: compose(FUENF_M);
+        Serial.print(", case 20-ow");
+      }
+      else
+      {
+        compose(ZWANZIG);
+        compose(NACH);
+        Serial.print(", case 20-rr");
+      }
+      break;
+
+    case 25:
+      compose(FUENF_M);
+      compose(VOR);
+      compose(HALB);
+      displayHour++;
+      Serial.print(", case 25");
+      break;
+
+    case 30:
+      compose(HALB);
+      displayHour++;
+      Serial.print(", case 30");
+      break;
+
+    case 35:
+      compose(FUENF_M);
+      compose(NACH);
+      compose(HALB);
+      displayHour++;
+      Serial.print(", case 35");
+      break;
+
+    case 40:
+      if (IsWessiDialect() || IsOssiDialect())
+      {
+        compose(ZEHN);
         compose(NACH);
         compose(HALB);
         displayHour++;
-        Serial.print(", case 35");
-        break;
-        
-    case 40: compose(ZWANZIG);
+        Serial.print(", case 40-ow");
+      }
+      else
+      {
+        compose(ZWANZIG);
         compose(VOR);
         displayHour++;
-        Serial.print(", case 40");
-        break;
-        
-#ifdef SOUTH_GERMAN_VERSION        
-    case 45: compose(DREIVIERTEL);
-        displayHour++;
-        Serial.print(", case 45-sg");
-        break;
-#else
-    case 45: compose(VIERTEL);
-        compose(VOR);
-        displayHour++;
-        Serial.print(", case 45-!sg");
-        break;
-#endif
+        Serial.print(", case 40-rr");
+      }
+      break;
 
-    case 50: compose(ZEHN_M);
+    case 45:
+      if (IsOssiDialect())
+      {
+        compose(DREIVIERTEL);
+        displayHour++;
+        Serial.print(", case 45-o");
+      }
+      else
+      {
+        compose(VIERTEL);
         compose(VOR);
         displayHour++;
-        Serial.print(", case 50");
-        break;
-        
-    case 55: compose(FUENF_M);
-        compose(VOR);
-        displayHour++;
-        Serial.print(", case 55");
-        break;
-    
+        Serial.print(", case 45-wrr");
+      }
+      break;
+
+    case 50:
+      compose(ZEHN_M);
+      compose(VOR);
+      displayHour++;
+      Serial.print(", case 50");
+      break;
+
+    case 55:
+      compose(FUENF_M);
+      compose(VOR);
+      displayHour++;
+      Serial.print(", case 55");
+      break;
+
     default:
-        Serial.print(", default-case");
+      Serial.print(", default-case");
   }
 
-  switch (minutesRemaining)
+  if (m_bSmallClock)
   {
-    case 1: compose(MIN1);
-            Serial.print(", case MIN1");
-            break;
-    case 2: compose(MIN2);
-            Serial.print(", case MIN2");
-            break;
-    case 3: compose(MIN3);
-            Serial.print(", case MIN3");
-            break;
-    case 4: compose(MIN4);
-            Serial.print(", case MIN4");
-            break;
-    default: break;
+    switch (minutesRemaining)
+    {
+
+      case 1: compose(MIN1_S);
+        Serial.print(", case MIN1_S ");
+        break;
+      case 2: compose(MIN2_S);
+        Serial.print(", case MIN2_S ");
+        break;
+      case 3: compose(MIN3_S);
+        Serial.print(", case MIN3_S ");
+        break;
+      case 4: compose(MIN4_S);
+        Serial.print(", case MIN4_S ");
+        break;
+      default: 
+        Serial.print(", ");
+      break;
+    }
   }
-  
+  else
+  {
+    switch (minutesRemaining)
+    {
+      case 1: compose(MIN1);
+        Serial.print(", case MIN1 ");
+        break;
+      case 2: compose(MIN2);
+        Serial.print(", case MIN2 ");
+        break;
+      case 3: compose(MIN3);
+        Serial.print(", case MIN3 ");
+        break;
+      case 4: compose(MIN4);
+        Serial.print(", case MIN4 ");
+        break;
+      default: break;
+    }
+  }
+
   display_hour(displayHour, roundMinute, hour);
-  
+
 }
 

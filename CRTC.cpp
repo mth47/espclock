@@ -29,30 +29,30 @@ bool CRTC::setup()
 {
   Wire.begin(SDA, SCL);
 
-  Rtc.Begin();
+  m_rtc.Begin();
   
-  if (!Rtc.IsDateTimeValid()) 
+  if (!m_rtc.IsDateTimeValid()) 
   {
     Serial.println("CRTC::setup() - RTC lost confidence in the DateTime!");
     // This will most likely happen when the battery is low or the RTC is used the first time.
     // After setting the sync provider the time will be set correctly to utc
   }
   
-  if (!Rtc.GetIsRunning())
+  if (!m_rtc.GetIsRunning())
   {
     Serial.println("CRTC::setup() - RTC was not actively running, starting now");
-    Rtc.SetIsRunning(true);
+    m_rtc.SetIsRunning(true);
   }
   
-  Rtc.Enable32kHzPin(false);
-  Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
+  m_rtc.Enable32kHzPin(false);
+  m_rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone);
 }
 
 
 time_t CRTC::now()
 {
   Serial.println("CRTC::now() - called");
-  if (!Rtc.IsDateTimeValid()) 
+  if (!m_rtc.IsDateTimeValid()) 
   {
     // Common Cuases:
     //    1) the battery on the device is low or even missing and the power line was disconnected
@@ -61,7 +61,7 @@ time_t CRTC::now()
     sync(0, true);
   }
 
-  RtcDateTime now = Rtc.GetDateTime();
+  RtcDateTime now = m_rtc.GetDateTime();
   time_t t((time_t)now.Epoch32Time());
 
   t = sync(t);
@@ -95,7 +95,7 @@ void CRTC::setTime(time_t t)
 {
   RtcDateTime now;
   now.InitWithEpoch32Time((uint32_t)t);
-  Rtc.SetDateTime(now);
+  m_rtc.SetDateTime(now);
   nextSyncTime = (uint32_t)t + syncInterval;
 }
 
@@ -107,9 +107,14 @@ void CRTC::setSyncProvider(ISyncProvider* pSyncProvider){
 
 void CRTC::setSyncInterval(time_t interval){ // set the number of seconds between re-sync
   syncInterval = (uint32_t)interval;
-  RtcDateTime now = Rtc.GetDateTime();
+  RtcDateTime now = m_rtc.GetDateTime();
   
   nextSyncTime = now.Epoch32Time() + syncInterval;
+}
+
+float CRTC::GetTemperature()
+{
+  return m_rtc.GetTemperature().AsFloat();
 }
 
 

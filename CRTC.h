@@ -28,6 +28,8 @@ public:
 
   void setSyncProvider(ISyncProvider* pSyncProvider);
   void setSyncInterval(time_t interval);
+
+  float GetTemperature();
   
 
 private:
@@ -38,7 +40,7 @@ private:
   time_t sync(time_t t, bool force=false);
   
 
-  RtcDS3231 Rtc;
+  RtcDS3231 m_rtc;
   
 };
 
