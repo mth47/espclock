@@ -175,7 +175,9 @@ void WebServer::Run(wsRequest& request)
                   "<meta name=\"viewport\" content=\"width=device-width, height=device-height initial-scale=1.0, user-scalable=yes\">"
                   "<h1>");
     sResponse  += station_name;
-    sResponse  += F(" UI</h1>"
+    sResponse += F(" UI</h1><h3 style=\"color:#787878\;\">");
+    sResponse  += clock.GetClockString();
+    sResponse  += F("</h3>"
                   "<FONT SIZE=+1>"
                   // "<form action=\"/\" autocomplete=\"on\">"
                   //"<form action=\"/\" autocomplete=\"on\">"
@@ -223,18 +225,23 @@ void WebServer::Run(wsRequest& request)
     sResponse +=  F("<!-- emtpy row--><tr><td><br></td><td><br></td><td><br></td></tr>");
 
     // night start hour
-    AddNumberField(sResponse, " Night Start ", "nightStart", "nStart", nightStart, true, true);
+    int8_t h = GetHourOfDayMin(nightStart);
+    int8_t m = GetMinOfDayMin(nightStart);
+    AddTwoNumberFields(sResponse, " Night Start ", "nightStartH", "nStartH", h, "nightStartM", "nStartM", m, true, true);
     // night end hour
-    AddNumberField(sResponse, " Night End ", "nightEnd", "nEnd", nightEnd, true, true);
+    h = GetHourOfDayMin(nightEnd);
+    m = GetMinOfDayMin(nightEnd);
+    AddTwoNumberFields(sResponse, " Night End ", "nightEndH", "nEndH", h, "nightEndM", "nEndM", m, true, true);
     
     // brightness slider
     AddSliderControl(sResponse, "#000000", "Brightness", "arBright", "arBR", 0, 100, brightness, "aiBRIGHT", "aiBR");
 
+   
     // brightnessDay slider
-    AddSliderControl(sResponse, "#000000", "Brightness Day", "arBrightD", "arBRD", 0, 100, brightnessDay, "aiBRIGHTD", "aiBRD");
+    AddSliderControl(sResponse, ((bIsDay) ? "#000000" : "#787878"), "Brightness Day", "arBrightD", "arBRD", 0, 100, brightnessDay, "aiBRIGHTD", "aiBRD");
 
     // brightnessNight slider
-    AddSliderControl(sResponse, "#000000", "Brightness Night", "arBrightN", "arBRN", 0, 100, brightnessNight, "aiBRIGHTN", "aiBRN");
+    AddSliderControl(sResponse, ((bIsDay) ? "#787878" : "#000000"), "Brightness Night", "arBrightN", "arBRN", 0, 100, brightnessNight, "aiBRIGHTN", "aiBRN");
 
     //sResponse  += F("</table><BR><table border=\"0\"><!-- set column size--><tr><td width=\"120px\"></td><td width=\"200px\"></td><td width=\"60px\"></td></tr>");
     sResponse +=  F("<!-- emtpy row--><tr><td><br></td><td><br></td><td><br></td></tr>");
@@ -319,10 +326,16 @@ void WebServer::Run(wsRequest& request)
         ReadColorPicker(sCmd, "colorPicker=", request);
       }
 
-       // night start hour
-      ReadNumberField(sCmd, "nightStart=", request, &wsRequest::SetNightStart);
+      // night start hour
+      h = 0; m = 0;
+      ReadNumberField(sCmd, "nightStartH=", h);
+      ReadNumberField(sCmd, "nightStartM=", m);
+      request.SetNightStart(GetMinOfTime(h,m));
+      
       // night end hour
-      ReadNumberField(sCmd, "nightEnd=", request, &wsRequest::SetNightEnd);
+      ReadNumberField(sCmd, "nightEndH=", h);
+      ReadNumberField(sCmd, "nightEndM=", m);
+      request.SetNightEnd(GetMinOfTime(h,m));
       
       ReadSliderValue(sCmd, "arBright=", request, &wsRequest::SetBrightness);
       ReadSliderValue(sCmd, "arBrightD=", request, &wsRequest::SetBrightnessDay);
@@ -585,6 +598,55 @@ void WebServer::AddNumberField(String &msg, String label, String fieldName, Stri
     if(bTable) msg += "</td><td></td></tr>";
 }
 
+void WebServer::AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable, bool bEdit)
+{
+    if(bTable) msg += "<tr><td>";
+    msg += "<span>";
+    msg += label;
+    msg += "</span>";
+    if(bTable) msg += "</td><td>";
+    if(bEdit)
+    {
+      msg += "<input type=\"number\" id=\"";
+      msg += fieldId1;
+      msg += "\" name=\"";
+      msg += fieldName1;
+      msg += "\" value=\"";
+      msg += fieldValue1;
+      msg += "\">";
+    }
+    else
+    {
+      msg += "<input type=\"number\" value=\"";
+      msg += fieldValue1;
+      msg += "\" disabled>";
+    }
+    
+    if(bTable) 
+      msg += "</td><td>";
+    else
+      msg += " ";
+      
+    if(bEdit)
+    {
+      msg += "<input type=\"number\" id=\"";
+      msg += fieldId2;
+      msg += "\" name=\"";
+      msg += fieldName2;
+      msg += "\" value=\"";
+      msg += fieldValue2;
+      msg += "\">";
+    }
+    else
+    {
+      msg += "<input type=\"number\" value=\"";
+      msg += fieldValue2;
+      msg += "\" disabled>";
+    }
+
+    if(bTable) msg += "</td></tr>";
+}
+
 void WebServer::AddButton(String &msg, String label, String fieldName, String buttonValue)
 {
     msg += "<tr><td>";
@@ -668,6 +730,15 @@ void WebServer::ReadNumberField(String& sCmd, const char* paramLabel, wsRequest&
    if(String("\0") != param)
    {
      (request.*fn) (param.toInt());
+   }
+}
+
+void WebServer::ReadNumberField(String& sCmd, const char* paramLabel, int8_t& num)
+{
+   String param = ReadValueAsString(sCmd, paramLabel);
+   if(String("\0") != param)
+   {
+     num = param.toInt();
    }
 }
 

@@ -65,40 +65,6 @@ bool displayClock = true;
  * ------------------------------------------------------------------------------
 */
 
-/* there is no floar/double support in the printf functions, so we need to do that
- * on our own. max up to nine decimals */
-char* ftoa(double f, int precision)
-{
-  long p[] = {0,10,100,1000,10000,100000,1000000,10000000,100000000};
-
-  char* ret = 0;
-  ret = new char[10];
-  memset(ret, 0, sizeof(char)*10);
-
-  char* a = ret;
-  
-  long heiltal = (long) f;
-  itoa(heiltal, a, 10);
-  
-  while (*a != '\0') 
-    a++;
-  
-  *a++ = '.';
-  
-  long desimal = abs((long)((f - heiltal) * p[precision]));
-  itoa(desimal, a, 10);
-  
-  return ret;
-}
-
-bool IsValidHour(uint8_t h)
-{  
-  if (0 <= h && 23 >= h)
-    return true;
-
-  return false;  
-}
-
 //------------------------------------------------------------------------------
 // permanent storage
 
@@ -159,13 +125,13 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
         if(CClockDisplay::eD_Wessi != dia && CClockDisplay::eD_RheinRuhr != dia && CClockDisplay::eD_Ossi != dia)
           dia == CClockDisplay::eD_Ossi;
 
-        nightStart = (uint8_t) json["nightStart"];
-        if(!IsValidHour(nightStart))
-          nightStart = (uint8_t) 22;
+        nightStart = (uint16_t) json["nightStart"];
+        if(!IsValidDayMin(nightStart))
+          nightStart = DEFAULT_NIGHT_START;
 
-        nightEnd = (uint8_t) json["nightEnd"];
-        if(!IsValidHour(nightEnd))
-          nightEnd = (uint8_t) 6;
+        nightEnd = (uint16_t) json["nightEnd"];
+        if(!IsValidDayMin(nightEnd))
+          nightEnd = DEFAULT_NIGHT_END;
 
         if(0 != json["station_name"].as<const char*>())
           strcpy(station_name, json["station_name"]);          
@@ -239,62 +205,6 @@ Timezone CE(CEST, CET);
 
 CFadeAnimation ani;
 
-bool IsNight(time_t local)
-{
-  static bool bNight=false;
-  
-  if(nightStart == nightEnd)
-  {
-    if(bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: nightStart == nightEnd '%d', return false", nightEnd);
-
-    return (bNight = false);
-  }
-    
-  if(0 == nightStart)
-  {
-    if(hour(local) >= nightStart && hour(local) < nightEnd)
-    {
-      if(!bNight)
-        serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' && hour(local) < nightEnd '%d', return true", nightStart, nightEnd);
-      
-      return (bNight = true);
-    }
-
-    if(bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: 0 == nightStart '%d', nightEnd '%d', return false", nightStart, nightEnd);
-
-    return (bNight = false);
-  }
-
-  if(0 == nightEnd)
-  {
-    if(hour(local) >= nightStart && hour(local) > nightEnd)
-    {
-      if(!bNight)
-         serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' &&  hour(local) > nightEnd '%d', return true", nightStart, nightEnd);
-      
-      return (bNight = true);
-    }
-
-    serialTrace.Log(T_DEBUG, "IsNight: nightStart '%d', 0 == nightEnd '%d', return false", nightStart, nightEnd);
-
-    return (bNight = false);
-  }
-  
-  if(hour(local) >= nightStart || hour(local) <= nightEnd)
-  {
-    if(!bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' || hour(local) <= nightEnd '%d', return true", nightStart, nightEnd);
-    return (bNight = true);
-  }
-
-  if(bNight)
-    serialTrace.Log(T_DEBUG, "IsNight: nightStart '%d', nightEnd '%d', return false", nightStart, nightEnd);
-  
-  return (bNight = false);
-}
-
 void updateBrightness(bool force=false)
 {
   static bool bDay=true;
@@ -304,6 +214,7 @@ void updateBrightness(bool force=false)
   
   if(IsNight(local))
   {
+    bIsDay = false;
     if(true == bDay || true == force)
     {
       Serial.println("Updating the brightness for the night.");
@@ -320,20 +231,24 @@ void updateBrightness(bool force=false)
       bDay = false;  
     }
   }
-  else if (false == bDay || true == force)
+  else
   {
-    Serial.println("Updating the brightness for the day.");
-    if(brightness != brightnessDay)
-      bConfigChanged = true;
+      bIsDay = true;
+      if (false == bDay || true == force)
+      {
+          Serial.println("Updating the brightness for the day.");
+          if (brightness != brightnessDay)
+              bConfigChanged = true;
 
-    brightness = brightnessDay;
-        
+          brightness = brightnessDay;
+
 #ifdef ENABLE_BLYNK
-    if (true == Blynk.connected())
-      Blynk.virtualWrite(V1, brightness);
+          if (true == Blynk.connected())
+              Blynk.virtualWrite(V1, brightness);
 #endif
-    FastLED.setBrightness(brightness);
-    bDay = true;
+          FastLED.setBrightness(brightness);
+          bDay = true;
+      }
   }
 
   if(bConfigChanged)
@@ -947,7 +862,6 @@ void setup ()
 
   serialTrace.Log(T_DEBUG, "Setup finsihed.");
 }
-
 
 
 void loop () 

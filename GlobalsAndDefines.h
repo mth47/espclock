@@ -17,7 +17,7 @@
 
 // Enables Serial Tracing
 #define TRACE
-// Enables Debug Traces
+// Enables Debug Traces, in VS this define is set by project settings in Arduino IDE not
 // #define _DEBUG
 
 #include "Trace.h"
@@ -69,16 +69,31 @@ extern CClockDisplay clock;
 
 /*
  * ------------------------------------------------------------------------------
- * Clock configuration/variables
+ * Clock configuration/variables/methods
  * ------------------------------------------------------------------------------
  */
+#define DEFAULT_NIGHT_START (uint16_t) 22 * 60
+#define DEFAULT_NIGHT_END (uint16_t) 6 * 60
 
 extern uint8_t brightnessNight;
 extern uint8_t brightnessDay;
 extern uint8_t brightness;
-extern uint8_t nightStart;
-extern uint8_t nightEnd;
+extern uint16_t nightStart;
+extern uint16_t nightEnd;
 extern CClockDisplay::eDialect clockDialect;
+
+extern bool bIsDay;
+
+uint16_t GetMinOfTime(int8_t hour, int8_t min);
+uint16_t GetMinOfTime(time_t t);
+uint8_t GetHourOfDayMin(uint16_t m);
+uint8_t GetMinOfDayMin(uint16_t m);
+bool IsValidHour(uint8_t h);
+bool IsValidDayMin(uint16_t m);
+// requires nightStart and nightEnd in minutes of the day
+bool IsNight(time_t local);
+// requires nightStart and nightEnd in hours of the day
+bool IsNightHour(time_t local);
 
 /*
  * ------------------------------------------------------------------------------
@@ -100,6 +115,10 @@ extern bool IsTestMode;
 #endif
 
 extern char station_name[50];
+
+
+char* ftoa(double f, int precision);
+
 
 #endif
 

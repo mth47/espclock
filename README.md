@@ -11,14 +11,14 @@
 *       TestMode, all leds, weak brightness
 *       HTML5 Color Picker added, does not work with older browser versions.
 *       Choose german dialect on web server
-*       Select night hours on web server
+*       Select night time on web server
 *       some website beautifying
 *	   	Configurable station name on config page
+*		Display current time on the web page as well
 
 ### **Todo:**
 *		pick differnt color for the night
 *		tv imitation in times where no one is at home?
-*		Display current time on the web page as well
 *		optimize programming (webserver code structuring, reduce globals and optimize for speed)
 *		weak glowing initials or name in unused leds, always, birthday only???
 *		second pulse in one of the unused leds, indvidual color or just red
@@ -28,7 +28,10 @@
 *		Execute Blynk only after the server connection has been established
 *		Blynk and NTP reconnect after WLAN outage
 *		Clock Display fix in case of disconnected WLAN
-*		One common define for Small Clock
+*		One common define for Small/Big Clock
+*       Half To/Past Display fix
+*       Reads older config file versions w/o cores :)
+*       Wrong day/night switch at certain conditions
 
 ### **Note:**
 		Without WLAN available during start-up an Access Point and the Configuration WebServer are started.

@@ -19,6 +19,9 @@
    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
    CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
    DEALINGS IN THE SOFTWARE.
+   
+   
+   Note: Several modifications by mth47.
 
 */
 
@@ -70,15 +73,127 @@ const int MIN4[]    = { 121, 120, 110, 119, -1 };
 
 const int DST[]     = { 109, -1};
 
+const char* STR_ES_IST_  = "Es ist ";
+const char* STR_FUENFH_  = "Fünf ";
+const char* STR_ZEHNH_   = "Zehn ";
+const char* STR_FUENF_   = "fünf ";
+const char* STR_ZEHN_    = "zehn ";
+const char* STR_ZWANZIG_ = "zwanzig ";
+const char* STR_DREIVIERTEL_ = "dreiviertel ";
+const char* STR_VIERTEL_ = "viertel ";
+const char* STR_VOR_     = "vor ";
+const char* STR_NACH_    = "nach ";
+const char* STR_HALB_    = "halb ";
+const char* STR_ELF_     = "Elf ";
+const char* STR_EIN_     = "Ein ";
+const char* STR_EINS_    = "Eins ";
+const char* STR_ZWEIH_   = "Zwei ";
+const char* STR_DREIH_   = "Drei ";
+const char* STR_VIERH_   = "Vier ";
+const char* STR_ZWEI_    = "zwei ";
+const char* STR_DREI_    = "drei ";
+const char* STR_VIER_    = "vier ";
+const char* STR_SECHS_   = "Sechs ";
+const char* STR_ACHT_    = "Acht ";
+const char* STR_SIEBEN_  = "Sieben ";
+const char* STR_ZWOELF_  = "Zwölf ";
+const char* STR_UHR_     = "Uhr ";
+const char* STR_NEUN_    = "Neun ";
+const char* STR_UND_     = "und ";
+const char* STR_MINUTEN  = "Minuten";
+const char* STR_EINE_MINUTE  = "eine Minute";
 
-CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi)
+
+// class CClockDisplay::ClockString
+CClockDisplay::ClockString::ClockString(int numLEDs) : m_cs(0), m_csLen(0)
 {
+    // every leds represents one charachter, so this is the maximum clockString size as well
+	// additional we add the number of minutes not part of the main display
+	m_csLen = strlen("plus x Minuten") + numLEDs + 1;
+	m_cs = new char[m_csLen];
+	if(m_cs)
+	{
+		Clear();
+	}	
+}
 
+CClockDisplay::ClockString::~ClockString()
+{	
+	delete [] m_cs;
+	m_cs = 0;
+}
+
+void CClockDisplay::ClockString::Clear() 
+{ 
+	memset(m_cs, 0, m_csLen); 
+}
+
+// Result in "Es ist "
+void CClockDisplay::ClockString::Reset() 
+{ 
+    Clear();
+	strcpy(m_cs, STR_ES_IST_);
+}
+
+void CClockDisplay::ClockString::Add(const char* s)
+{
+	strcat(m_cs, s);
+}
+
+const char* CClockDisplay::GetHourString(int h, int m)
+{
+    if(0 == h || 12 == h || 24 == h)
+	  return STR_ZWOELF_;
+	
+    if(11 == h || 23 == h)
+	  return STR_ELF_;	
+	
+    if(10 == h || 22 == h)
+	  return STR_ZEHNH_;	
+	  
+    if(9 == h || 21 == h)
+	  return STR_NEUN_;	
+	  
+    if(8 == h || 20 == h)
+	  return STR_ACHT_;		  
+	
+    if(7 == h || 19 == h)
+	  return STR_SIEBEN_;	
+	  
+    if(6 == h || 18 == h)
+	  return STR_SECHS_;	
+	  
+    if(5 == h || 17 == h)
+	  return STR_FUENFH_;	
+	  
+    if(4 == h || 16 == h)
+	  return STR_VIERH_;	
+	  
+    if(3 == h || 15 == h)
+	  return STR_DREIH_;	
+	  
+    if(2 == h || 14 == h)
+	  return STR_ZWEIH_;	
+	  
+    if((1 == h || 13 == h) && 0 != m)
+	  return STR_EINS_;
+
+	if((1 == h || 13 == h) && 0 == m)
+	  return STR_EIN_;
+	  
+	return "";
+}
+
+// class CClockDisplay
+CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi), m_clockString(0)
+{
+	m_clockString = new ClockString(m_numLEDs);	
 }
 
 CClockDisplay::~CClockDisplay()
 {
-
+   delete m_clockString;
+   m_clockString = 0;
 }
 
 bool CClockDisplay::setup(CRGB* leds, int numLEDs)
@@ -103,6 +218,14 @@ bool CClockDisplay::setup_small(CRGB* leds, int numLEDs)
   m_bSmallClock = true;
 
   return true;
+}
+
+const char* CClockDisplay::GetClockString ()
+{
+	if(!m_clockString)
+		return "";
+		
+	return m_clockString->Get();
 }
 
 bool CClockDisplay::update(bool force)
@@ -289,23 +412,33 @@ void CClockDisplay::display_time(const int hour, const int minute) {
   Serial.print(minutesRemaining);
 
   int displayHour = hour;
+  
+  m_clockString->Reset();
 
   switch (roundMinute) {
     case 0:
       compose(UHR);
       Serial.print(", case 0");
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
+	  m_clockString->Add(STR_UHR_);
       break;
 
     case 5:
       compose(FUENF_M);
       compose(NACH);
       Serial.print(", case 5 ");
+	  m_clockString->Add(STR_FUENF_);
+	  m_clockString->Add(STR_NACH_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 10:
       compose(ZEHN_M);
       compose(NACH);
       Serial.print(", case 10");
+	  m_clockString->Add(STR_ZEHN_);
+	  m_clockString->Add(STR_NACH_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 15:
@@ -314,30 +447,40 @@ void CClockDisplay::display_time(const int hour, const int minute) {
         compose(VIERTEL);
         displayHour++;
         Serial.print(", case 15-o");
+		m_clockString->Add(STR_VIERTEL_);
       }
       else
       {
         compose(VIERTEL);
         compose(NACH);
         Serial.print(", case 15-!o");
+		m_clockString->Add(STR_VIERTEL_);
+		m_clockString->Add(STR_NACH_);
       }
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 20:
       if (IsWessiDialect() || IsOssiDialect())
       {
-        compose(ZEHN);
+        compose(ZEHN_M);
         compose(VOR);
         compose(HALB);
         displayHour++;
         Serial.print(", case 20-ow");
+		m_clockString->Add(STR_ZEHN_);
+	    m_clockString->Add(STR_VOR_);
+		m_clockString->Add(STR_HALB_);
       }
       else
       {
         compose(ZWANZIG);
         compose(NACH);
         Serial.print(", case 20-rr");
+		m_clockString->Add(STR_ZWANZIG_);
+	    m_clockString->Add(STR_NACH_);
       }
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 25:
@@ -346,12 +489,18 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       compose(HALB);
       displayHour++;
       Serial.print(", case 25");
+	  m_clockString->Add(STR_FUENF_);
+	  m_clockString->Add(STR_VOR_);
+	  m_clockString->Add(STR_HALB_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 30:
       compose(HALB);
       displayHour++;
       Serial.print(", case 30");
+	  m_clockString->Add(STR_HALB_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 35:
@@ -360,16 +509,23 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       compose(HALB);
       displayHour++;
       Serial.print(", case 35");
+	  m_clockString->Add(STR_FUENF_);
+	  m_clockString->Add(STR_NACH_);
+	  m_clockString->Add(STR_HALB_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 40:
       if (IsWessiDialect() || IsOssiDialect())
       {
-        compose(ZEHN);
+        compose(ZEHN_M);
         compose(NACH);
         compose(HALB);
         displayHour++;
         Serial.print(", case 40-ow");
+		m_clockString->Add(STR_ZEHN_);
+	    m_clockString->Add(STR_NACH_);
+	    m_clockString->Add(STR_HALB_);
       }
       else
       {
@@ -377,7 +533,10 @@ void CClockDisplay::display_time(const int hour, const int minute) {
         compose(VOR);
         displayHour++;
         Serial.print(", case 40-rr");
+		m_clockString->Add(STR_ZWANZIG_);
+	    m_clockString->Add(STR_VOR_);
       }
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 45:
@@ -386,6 +545,7 @@ void CClockDisplay::display_time(const int hour, const int minute) {
         compose(DREIVIERTEL);
         displayHour++;
         Serial.print(", case 45-o");
+		m_clockString->Add(STR_DREIVIERTEL_);
       }
       else
       {
@@ -393,7 +553,10 @@ void CClockDisplay::display_time(const int hour, const int minute) {
         compose(VOR);
         displayHour++;
         Serial.print(", case 45-wrr");
+		m_clockString->Add(STR_VIERTEL_);
+		m_clockString->Add(STR_VOR_);
       }
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 50:
@@ -401,6 +564,9 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       compose(VOR);
       displayHour++;
       Serial.print(", case 50");
+	  m_clockString->Add(STR_ZEHN_);
+	  m_clockString->Add(STR_VOR_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     case 55:
@@ -408,12 +574,15 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       compose(VOR);
       displayHour++;
       Serial.print(", case 55");
+	  m_clockString->Add(STR_FUENF_);
+	  m_clockString->Add(STR_VOR_);
+	  m_clockString->Add(GetHourString(displayHour, roundMinute));
       break;
 
     default:
       Serial.print(", default-case");
   }
-
+  
   if (m_bSmallClock)
   {
     switch (minutesRemaining)
@@ -421,15 +590,26 @@ void CClockDisplay::display_time(const int hour, const int minute) {
 
       case 1: compose(MIN1_S);
         Serial.print(", case MIN1_S ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_EINE_MINUTE);
         break;
       case 2: compose(MIN2_S);
         Serial.print(", case MIN2_S ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_ZWEI_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       case 3: compose(MIN3_S);
         Serial.print(", case MIN3_S ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_DREI_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       case 4: compose(MIN4_S);
         Serial.print(", case MIN4_S ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_VIER_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       default: 
         Serial.print(", ");
@@ -442,15 +622,26 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     {
       case 1: compose(MIN1);
         Serial.print(", case MIN1 ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_EINE_MINUTE);
         break;
       case 2: compose(MIN2);
         Serial.print(", case MIN2 ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_ZWEI_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       case 3: compose(MIN3);
         Serial.print(", case MIN3 ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_DREI_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       case 4: compose(MIN4);
         Serial.print(", case MIN4 ");
+        m_clockString->Add(STR_UND_);
+		m_clockString->Add(STR_VIER_);
+		m_clockString->Add(STR_MINUTEN);
         break;
       default: break;
     }

@@ -25,7 +25,7 @@ public:
   {
     public:
     
-    wsRequest(CRGB color, uint8_t brightnessNight, uint8_t brightnessDay, uint8_t brightness, String ntp, uint8_t nightStart, uint8_t nightEnd, CClockDisplay::eDialect dia)
+    wsRequest(CRGB color, uint8_t brightnessNight, uint8_t brightnessDay, uint8_t brightness, String ntp, uint16_t nightStart, uint16_t nightEnd, CClockDisplay::eDialect dia)
     {
       m_color = color;
       m_brightnessNight = brightnessNight;
@@ -127,23 +127,23 @@ public:
     }
     uint8_t GetBrightnessNight() { return m_brightnessNight; }
     
-    void SetNightStart(uint8_t b) 
+    void SetNightStart(uint16_t b) 
     { 
       if(m_nightStart != b)
         m_bNightChanged = true;
     
       m_nightStart = b;
     }
-    uint8_t GetNightStart() { return m_nightStart; }
+    uint16_t GetNightStart() { return m_nightStart; }
 
-    void SetNightEnd(uint8_t b) 
+    void SetNightEnd(uint16_t b) 
     { 
       if(m_nightEnd != b)
         m_bNightChanged = true;
     
       m_nightEnd = b;
     }
-    uint8_t GetNightEnd() { return m_nightEnd; }
+    uint16_t GetNightEnd() { return m_nightEnd; }
 
     void SetNtp(String ntp) 
     { 
@@ -168,8 +168,8 @@ public:
     uint8_t m_brightness;  
     String m_ntp;
     bool m_bNtpChanged;
-    uint8_t m_nightStart;
-    uint8_t m_nightEnd;
+    uint16_t m_nightStart;
+    uint16_t m_nightEnd;
     bool m_bNightChanged;
 
     CClockDisplay::eDialect m_dia;
@@ -192,6 +192,7 @@ private:
   void AddSliderControl(String &msg, String htmlColor, String label, String rangeName, String rangeId, int16_t minValue, int16_t maxValue, int16_t curColor, String inputName, String inputId);
   void AddTextField(String &msg, String htmlColor, String label, String fieldName, String fieldId, String fieldValue, bool bTable = true);
   void AddNumberField(String &msg, String label, String fieldName, String fieldId, float fieldValue, bool bTable = true, bool bEdit = true);
+  void AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable = true, bool bEdit = true);
   void AddButton(String &msg, String label, String fieldName, String buttonValue);
   void AddCheckBox(String &msg, String label, String fieldName, String fieldId, String value, String currentValue, String currentValueColor);
   void AddRadioButton(String &msg, String label, String fieldName, String fieldId, String value, bool bChecked);
@@ -200,6 +201,7 @@ private:
   bool UseSlider(String& sCmd, const char* paramLabel);
   void ReadTextField(String& sCmd, const char* paramLabel, wsRequest& request, SetStringFn fn);
   void ReadNumberField(String& sCmd, const char* paramLabel, wsRequest& request, SetIntFn fn);
+  void ReadNumberField(String& sCmd, const char* paramLabel, int8_t& n);
   //colorPicker=%237c3400 == #7c3400
   void ReadColorPicker(String& sCmd, const char* paramLabel, wsRequest& request);
   String ReadValueAsString(String& sCmd, const char* paramLabel);
