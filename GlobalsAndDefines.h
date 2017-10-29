@@ -65,6 +65,8 @@ extern CRGB leds_target[NUM_LEDS];
 #define DEFAULT_GREEN 127
 #define DEFAULT_BLUE 36
 
+extern CRGB color_WarmWhile;
+
 extern CClockDisplay clock;
 
 /*
@@ -75,12 +77,29 @@ extern CClockDisplay clock;
 #define DEFAULT_NIGHT_START (uint16_t) 22 * 60
 #define DEFAULT_NIGHT_END (uint16_t) 6 * 60
 
+#ifdef SMALLCLOCK
+    #define BRIGHTNESS_TVSIM 100
+#else
+    #define BRIGHTNESS_TVSIM 80
+#endif
+#define BRIGHTNESS_TEST 5
+
 extern uint8_t brightnessNight;
 extern uint8_t brightnessDay;
 extern uint8_t brightness;
 extern uint16_t nightStart;
 extern uint16_t nightEnd;
 extern CClockDisplay::eDialect clockDialect;
+
+extern bool bSunRise;
+extern bool bRunSunRise;
+// ONE_SUNRISE_STEP_IN_MS * NUM_SUNRISE_STEPS == overal time from zero to max brightness
+// 5 min == 5 x 60 x 1000 milli seconds
+// brightness can be adjusted from 0 to 100 only
+#define ONE_SUNRISE_STEP_IN_MS 2000
+#define NUM_SUNRISE_STEPS 100
+
+extern uint32_t holdTime;
 
 extern bool bIsDay;
 
@@ -92,8 +111,6 @@ bool IsValidHour(uint8_t h);
 bool IsValidDayMin(uint16_t m);
 // requires nightStart and nightEnd in minutes of the day
 bool IsNight(time_t local);
-// requires nightStart and nightEnd in hours of the day
-bool IsNightHour(time_t local);
 
 /*
  * ------------------------------------------------------------------------------
@@ -106,7 +123,17 @@ bool IsNightHour(time_t local);
 extern char ntp_server[50];
 extern char blynk_token[33];
 extern bool IsConfigMode;
-extern bool IsTestMode;
+
+enum ClockMode
+{
+    eCM_clock = 0,
+    eCM_test = 1,
+    eCM_tv = 2,
+    eCM_opc = 3,
+
+};
+
+extern ClockMode clockMode;
 
 #ifdef SMALLCLOCK
   #define DEFAULT_STATIONNAME "wordclock_small"

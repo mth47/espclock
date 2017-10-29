@@ -7,6 +7,8 @@
 
 #include "CClockDisplay.h"
 
+#include "GlobalsAndDefines.h"
+
 #define TABLE_BORDER_COLOR "#e7e7de"  // same gray like the button background
 #define TABLE_WIDTH "500px"
 
@@ -32,7 +34,7 @@ public:
       m_brightnessDay = brightnessDay;
       m_brightness = brightness;
       m_bEnableConfigMode = false;
-      m_bToggleTestMode = false;
+      m_mode = clockMode;
       m_bColorChanged = false;
       m_bBrightnessChanged = false;
       m_ntp = ntp;
@@ -42,6 +44,9 @@ public:
       m_nightStart = nightStart;
       m_nightEnd = nightEnd;
       m_bNightChanged = false;
+      m_bInverseDisplay = false;
+      m_bSetSunRise = false;
+      m_mode = clockMode;
     }
 
     virtual ~wsRequest() {}
@@ -154,10 +159,13 @@ public:
     }
     String GetNtp() { return m_ntp; }
 
-    bool m_bToggleTestMode;
+    ClockMode m_mode;
+
     bool m_bEnableConfigMode;
-    
-    private:
+    bool m_bInverseDisplay;
+    bool m_bSetSunRise;
+
+  private:
 
     bool m_bColorChanged;
     bool m_bBrightnessChanged;
@@ -174,6 +182,7 @@ public:
 
     CClockDisplay::eDialect m_dia;
     bool m_bDialectChanged;
+
     
   };
 

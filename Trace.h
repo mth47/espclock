@@ -146,6 +146,8 @@ class Trace : private Trace_Internal
       if (!CreateTraceMessage(format, args, false))
       {
         va_end (args);
+        Serial.println("ERROR: Failed to create trace");
+        Serial.flush();
         return 0;
       }
 
@@ -173,6 +175,8 @@ class Trace : private Trace_Internal
       if (!CreateTraceMessage(format, args, true))
       {
         va_end (args);
+        Serial.println("ERROR: Failed to create trace");
+        Serial.flush();
         return 0;
       }
 

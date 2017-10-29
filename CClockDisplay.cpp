@@ -185,7 +185,7 @@ const char* CClockDisplay::GetHourString(int h, int m)
 }
 
 // class CClockDisplay
-CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi), m_clockString(0)
+CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_bgColor(CRGB::Black), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi), m_clockString(0), m_bInverse(false), m_bDualColor(false)
 {
 	m_clockString = new ClockString(m_numLEDs);	
 }
@@ -228,30 +228,61 @@ const char* CClockDisplay::GetClockString ()
 	return m_clockString->Get();
 }
 
+void CClockDisplay::SetInverse()
+{
+    if (m_bInverse)
+        m_bInverse = false;
+    else
+        m_bInverse = true;
+}
+
+bool CClockDisplay::GetInverse()
+{
+    return m_bInverse;
+}
+
+void CClockDisplay::SetDualColor()
+{
+    if (m_bDualColor)
+        m_bDualColor = false;
+    else
+        m_bDualColor = true;
+}
+
+bool CClockDisplay::GetDualColor()
+{
+    return m_bDualColor;
+}
+
 bool CClockDisplay::update(bool force)
 {
-  if (m_currentMinute != minute() || true == force)
-  {
-    time_t utc(now());
-    fill_solid( &(m_pLEDs[0]), m_numLEDs, CRGB::Black);
+    if (m_currentMinute != minute() || true == force)
+    {
+        time_t utc(now());
 
-    compose(ES);
-    compose(IST);
+        if(m_bInverse)
+            fill_solid(&(m_pLEDs[0]), m_numLEDs, m_color);
+        else
+            fill_solid(&(m_pLEDs[0]), m_numLEDs, m_bgColor);
 
-    //  if(CE.utcIsDST(utc))
-    //  {
-    //    compose(DST);
-    //  }
+        compose(ES, m_bInverse);
+        compose(IST, m_bInverse);
 
-    time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
-    display_time(hour(local), minute(local));
+        //  if(CE.utcIsDST(utc))
+        //  {
+        //    compose(DST);
+        //  }
 
-    m_currentMinute = minute();
-    Serial.println();
-    return true;
-  }
+        time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
+        display_time(hour(local), minute(local), m_bInverse);
 
-  return false;
+        m_currentMinute = minute();
+
+        Serial.println();
+        return true;
+    }
+
+    return false;
 }
 
 CRGB CClockDisplay::getColor()
@@ -262,6 +293,11 @@ CRGB CClockDisplay::getColor()
 void CClockDisplay::setColor(const CRGB& color)
 {
   m_color = color;
+}
+
+void CClockDisplay::setBgColor(const CRGB& bgColor)
+{
+    m_bgColor = bgColor;
 }
 
 void CClockDisplay::setTimezone(Timezone* pTZ)
@@ -310,12 +346,18 @@ bool CClockDisplay::IsRheinRuhrDialect ()
         to the input array. The ledBits has to be big enough to
         accomodate the indices provided in arrayToAdd.
 */
-void CClockDisplay::compose(const int arrayToAdd[]) {
+void CClockDisplay::compose(const int arrayToAdd[], bool bInverse) 
+{
   int pos;
   int i = 0;
 
-  while ((pos = arrayToAdd[i++]) != -1) {
-    m_pLEDs[pos] = m_color;
+  CRGB c = m_color;
+  if (bInverse)
+      c = m_bgColor;
+
+  while ((pos = arrayToAdd[i++]) != -1) 
+  {
+    m_pLEDs[pos] = c;
   }
 }
 
@@ -325,7 +367,8 @@ void CClockDisplay::compose(const int arrayToAdd[]) {
   @param hour the hour to be set
   @param (out) ledBits array to set led bits
 */
-void CClockDisplay::display_hour(const int displayHour, const int minute, const int hour) {
+void CClockDisplay::display_hour(const int displayHour, const int minute, const int hour, bool bInverse) 
+{
 
   int hourAMPM = displayHour;
 
@@ -346,49 +389,49 @@ void CClockDisplay::display_hour(const int displayHour, const int minute, const 
 
   switch (hourAMPM) {
 
-    case 0: compose(ZWOELF);
+    case 0: compose(ZWOELF, bInverse);
       break;
 
     case 1:
       if (minute == 0) {
-        compose(EIN);
+        compose(EIN, bInverse);
       }
       else {
-        compose(EINS);
+        compose(EINS, bInverse);
       }
       break;
 
-    case 2: compose(ZWEI);
+    case 2: compose(ZWEI, bInverse);
       break;
 
-    case 3: compose(DREI);
+    case 3: compose(DREI, bInverse);
       break;
 
-    case 4: compose(VIER);
+    case 4: compose(VIER, bInverse);
       break;
 
-    case 5: compose(FUENF);
+    case 5: compose(FUENF, bInverse);
       break;
 
-    case 6: compose(SECHS);
+    case 6: compose(SECHS, bInverse);
       break;
 
-    case 7: compose(SIEBEN);
+    case 7: compose(SIEBEN, bInverse);
       break;
 
-    case 8: compose(ACHT);
+    case 8: compose(ACHT, bInverse);
       break;
 
-    case 9: compose(NEUN);
+    case 9: compose(NEUN, bInverse);
       break;
 
-    case 10: compose(ZEHN);
+    case 10: compose(ZEHN, bInverse);
       break;
 
-    case 11: compose(ELF);
+    case 11: compose(ELF, bInverse);
       break;
 
-    case 12: compose(ZWOELF);
+    case 12: compose(ZWOELF, bInverse);
       break;
   }
 }
@@ -400,7 +443,8 @@ void CClockDisplay::display_hour(const int displayHour, const int minute, const 
   @param minute the minute to be set
   @param (out) ledBits bits for the LEDs (will NOT be cleared)
 */
-void CClockDisplay::display_time(const int hour, const int minute) {
+void CClockDisplay::display_time(const int hour, const int minute, bool bInverse)
+{
 
   int roundMinute = (minute / 5) * 5;
   int minutesRemaining = minute - roundMinute;
@@ -417,15 +461,15 @@ void CClockDisplay::display_time(const int hour, const int minute) {
 
   switch (roundMinute) {
     case 0:
-      compose(UHR);
+      compose(UHR, bInverse);
       Serial.print(", case 0");
 	  m_clockString->Add(GetHourString(displayHour, roundMinute));
 	  m_clockString->Add(STR_UHR_);
       break;
 
     case 5:
-      compose(FUENF_M);
-      compose(NACH);
+      compose(FUENF_M, bInverse);
+      compose(NACH, bInverse);
       Serial.print(", case 5 ");
 	  m_clockString->Add(STR_FUENF_);
 	  m_clockString->Add(STR_NACH_);
@@ -433,8 +477,8 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 10:
-      compose(ZEHN_M);
-      compose(NACH);
+      compose(ZEHN_M, bInverse);
+      compose(NACH, bInverse);
       Serial.print(", case 10");
 	  m_clockString->Add(STR_ZEHN_);
 	  m_clockString->Add(STR_NACH_);
@@ -444,15 +488,15 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     case 15:
       if (IsOssiDialect())
       {
-        compose(VIERTEL);
+        compose(VIERTEL, bInverse);
         displayHour++;
         Serial.print(", case 15-o");
 		m_clockString->Add(STR_VIERTEL_);
       }
       else
       {
-        compose(VIERTEL);
-        compose(NACH);
+        compose(VIERTEL, bInverse);
+        compose(NACH, bInverse);
         Serial.print(", case 15-!o");
 		m_clockString->Add(STR_VIERTEL_);
 		m_clockString->Add(STR_NACH_);
@@ -463,9 +507,9 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     case 20:
       if (IsWessiDialect() || IsOssiDialect())
       {
-        compose(ZEHN_M);
-        compose(VOR);
-        compose(HALB);
+        compose(ZEHN_M, bInverse);
+        compose(VOR, bInverse);
+        compose(HALB, bInverse);
         displayHour++;
         Serial.print(", case 20-ow");
 		m_clockString->Add(STR_ZEHN_);
@@ -474,8 +518,8 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       }
       else
       {
-        compose(ZWANZIG);
-        compose(NACH);
+        compose(ZWANZIG, bInverse);
+        compose(NACH, bInverse);
         Serial.print(", case 20-rr");
 		m_clockString->Add(STR_ZWANZIG_);
 	    m_clockString->Add(STR_NACH_);
@@ -484,9 +528,9 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 25:
-      compose(FUENF_M);
-      compose(VOR);
-      compose(HALB);
+      compose(FUENF_M, bInverse);
+      compose(VOR, bInverse);
+      compose(HALB, bInverse);
       displayHour++;
       Serial.print(", case 25");
 	  m_clockString->Add(STR_FUENF_);
@@ -496,7 +540,7 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 30:
-      compose(HALB);
+      compose(HALB, bInverse);
       displayHour++;
       Serial.print(", case 30");
 	  m_clockString->Add(STR_HALB_);
@@ -504,9 +548,9 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 35:
-      compose(FUENF_M);
-      compose(NACH);
-      compose(HALB);
+      compose(FUENF_M, bInverse);
+      compose(NACH, bInverse);
+      compose(HALB, bInverse);
       displayHour++;
       Serial.print(", case 35");
 	  m_clockString->Add(STR_FUENF_);
@@ -518,9 +562,9 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     case 40:
       if (IsWessiDialect() || IsOssiDialect())
       {
-        compose(ZEHN_M);
-        compose(NACH);
-        compose(HALB);
+        compose(ZEHN_M, bInverse);
+        compose(NACH, bInverse);
+        compose(HALB, bInverse);
         displayHour++;
         Serial.print(", case 40-ow");
 		m_clockString->Add(STR_ZEHN_);
@@ -529,8 +573,8 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       }
       else
       {
-        compose(ZWANZIG);
-        compose(VOR);
+        compose(ZWANZIG, bInverse);
+        compose(VOR, bInverse);
         displayHour++;
         Serial.print(", case 40-rr");
 		m_clockString->Add(STR_ZWANZIG_);
@@ -542,15 +586,15 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     case 45:
       if (IsOssiDialect())
       {
-        compose(DREIVIERTEL);
+        compose(DREIVIERTEL, bInverse);
         displayHour++;
         Serial.print(", case 45-o");
 		m_clockString->Add(STR_DREIVIERTEL_);
       }
       else
       {
-        compose(VIERTEL);
-        compose(VOR);
+        compose(VIERTEL, bInverse);
+        compose(VOR, bInverse);
         displayHour++;
         Serial.print(", case 45-wrr");
 		m_clockString->Add(STR_VIERTEL_);
@@ -560,8 +604,8 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 50:
-      compose(ZEHN_M);
-      compose(VOR);
+      compose(ZEHN_M, bInverse);
+      compose(VOR, bInverse);
       displayHour++;
       Serial.print(", case 50");
 	  m_clockString->Add(STR_ZEHN_);
@@ -570,8 +614,8 @@ void CClockDisplay::display_time(const int hour, const int minute) {
       break;
 
     case 55:
-      compose(FUENF_M);
-      compose(VOR);
+      compose(FUENF_M, bInverse);
+      compose(VOR, bInverse);
       displayHour++;
       Serial.print(", case 55");
 	  m_clockString->Add(STR_FUENF_);
@@ -588,24 +632,24 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     switch (minutesRemaining)
     {
 
-      case 1: compose(MIN1_S);
+      case 1: compose(MIN1_S, bInverse);
         Serial.print(", case MIN1_S ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_EINE_MINUTE);
         break;
-      case 2: compose(MIN2_S);
+      case 2: compose(MIN2_S, bInverse);
         Serial.print(", case MIN2_S ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_ZWEI_);
 		m_clockString->Add(STR_MINUTEN);
         break;
-      case 3: compose(MIN3_S);
+      case 3: compose(MIN3_S, bInverse);
         Serial.print(", case MIN3_S ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_DREI_);
 		m_clockString->Add(STR_MINUTEN);
         break;
-      case 4: compose(MIN4_S);
+      case 4: compose(MIN4_S, bInverse);
         Serial.print(", case MIN4_S ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_VIER_);
@@ -620,24 +664,24 @@ void CClockDisplay::display_time(const int hour, const int minute) {
   {
     switch (minutesRemaining)
     {
-      case 1: compose(MIN1);
+      case 1: compose(MIN1, bInverse);
         Serial.print(", case MIN1 ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_EINE_MINUTE);
         break;
-      case 2: compose(MIN2);
+      case 2: compose(MIN2, bInverse);
         Serial.print(", case MIN2 ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_ZWEI_);
 		m_clockString->Add(STR_MINUTEN);
         break;
-      case 3: compose(MIN3);
+      case 3: compose(MIN3, bInverse);
         Serial.print(", case MIN3 ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_DREI_);
 		m_clockString->Add(STR_MINUTEN);
         break;
-      case 4: compose(MIN4);
+      case 4: compose(MIN4, bInverse);
         Serial.print(", case MIN4 ");
         m_clockString->Add(STR_UND_);
 		m_clockString->Add(STR_VIER_);
@@ -647,7 +691,7 @@ void CClockDisplay::display_time(const int hour, const int minute) {
     }
   }
 
-  display_hour(displayHour, roundMinute, hour);
+  display_hour(displayHour, roundMinute, hour, bInverse);
 
 }
 

@@ -1,5 +1,4 @@
 #include "WebServer.h"
-#include "GlobalsAndDefines.h"
 
 
 WebServer::WebServer() 
@@ -263,16 +262,32 @@ void WebServer::Run(wsRequest& request)
       AddCheckBox(sResponse, "Config Mode after restart", "CheckConfig", "ChkCfg", "CONFIGON", "ON", "#787878");
     else
       AddCheckBox(sResponse, "Config Mode after restart", "CheckConfig", "ChkCfg", "CONFIGON", "OFF", "#787878");
+
+    if (clock.GetInverse())
+        AddCheckBox(sResponse, "Inverse Clock Display", "Inverse", "InvDisp", "INDISP", "ON", "#787878");
+    else
+        AddCheckBox(sResponse, "Inverse Clock Display", "Inverse", "InvDisp", "INDISP", "OFF", "#787878");
+
+    if (bSunRise)
+        AddCheckBox(sResponse, "Set Sun Rise (Mo-Fr)", "SetS", "SetSun", "SUNRISE", "ON", "#787878");
+    else
+        AddCheckBox(sResponse, "Set Sun Rise (Mo-Fr)", "SetS", "SetSun", "SUNRISE", "OFF", "#787878");    
  
-    //AddButton(sResponse, "Config Mode after restart", "CONFIGON", "Set");
-    if(IsTestMode)
+    // add the radios for the three modes, one per column, opc mode currently not supported
+    sResponse += "<tr><td>";
+    AddRadioButton(sResponse, "Clock Mode", "mode", "mClock", "clock", (eCM_clock == clockMode) ? true : false);
+    sResponse += "</td><td>";
+    AddRadioButton(sResponse, "Test Mode", "mode", "mTest", "test", (eCM_test == clockMode) ? true : false);
+    sResponse += "</td><td>";
+    AddRadioButton(sResponse, "TV Sim Mode", "mode", "mTVS", "tvs", (eCM_tv == clockMode) ? true : false);
+    sResponse += "</td></tr>";
+    /*if(IsTestMode)
       AddCheckBox(sResponse, "Toggle Test Mode", "TestMode", "TsM", "TEST", "ON", "#787878");
     else
-      AddCheckBox(sResponse, "Toggle Test Mode", "TestMode", "TsM", "TEST", "OFF", "#787878");
+      AddCheckBox(sResponse, "Toggle Test Mode", "TestMode", "TsM", "TEST", "OFF", "#787878");*/
     //AddButton(sResponse, "Test Mode", "TEST", "Toggle");
 
     // add the radios for the three languages, one per column
-    // AddCheckBox(sResponse, "Toggle Dialect", "ToggleDialet", "Dia", "DIA", (clock.IsSouthGermanDialect() ? "SOUTH and EAST" : "WEST") );
     sResponse +=  "<tr><td>";
     AddRadioButton(sResponse, "Ostdeutsch", "dialect", "dOst", "Ost", clock.IsOssiDialect());
     sResponse +=  "</td><td>";
@@ -349,13 +364,28 @@ void WebServer::Run(wsRequest& request)
         request.m_bEnableConfigMode = true;
       }
 
-      if(sCmd.indexOf("TEST")>=0)
+      if (sCmd.indexOf("INDISP") >= 0)
       {
-        serialTrace.Log(T_DEBUG, "WebServer - TEST");
-        request.m_bToggleTestMode = true;
-      }           
+          serialTrace.Log(T_DEBUG, "WebServer - INDISP");
+          request.m_bInverseDisplay = true;
+      }
 
-      String param = ReadValueAsString(sCmd, "dialect=");
+      if (sCmd.indexOf("SUNRISE") >= 0)
+      {
+          serialTrace.Log(T_DEBUG, "WebServer - SUNRISE");
+          request.m_bSetSunRise = true;
+      }
+
+      String param = ReadValueAsString(sCmd, "mode=");
+      serialTrace.Log(T_DEBUG, "WebServer - new mode == %s", param.c_str());
+      if (String("clock") == param)
+          request.m_mode = eCM_clock;
+      else if (String("test") == param)
+          request.m_mode = eCM_test;
+      else if (String("tvs") == param)
+          request.m_mode = eCM_tv;
+
+      param = ReadValueAsString(sCmd, "dialect=");
       serialTrace.Log(T_DEBUG, "WebServer - new dialect == %s", param.c_str());
       if (String("West") == param)
         request.SetDialect(CClockDisplay::eD_Wessi);

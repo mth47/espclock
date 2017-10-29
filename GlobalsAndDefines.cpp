@@ -19,6 +19,8 @@ CRGB leds_target[NUM_LEDS];
 
 CClockDisplay clock;
 
+CRGB color_WarmWhile(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
+
 /*
    ------------------------------------------------------------------------------
    Clock configuration/variables/methods
@@ -31,6 +33,11 @@ uint8_t brightness = brightnessDay;
 uint16_t nightStart = DEFAULT_NIGHT_START;
 uint16_t nightEnd = DEFAULT_NIGHT_END;
 CClockDisplay::eDialect clockDialect = CClockDisplay::eD_Ossi;
+
+bool bSunRise = false;
+bool bRunSunRise = false;
+
+uint32_t holdTime = 0;
 
 bool bIsDay = true;
 
@@ -119,63 +126,6 @@ bool IsNight(time_t local)
   return (bNight = false);
 } 
 
-
-bool IsNightHour(time_t local)
-{
-  static bool bNight=false;
-  
-  if(nightStart == nightEnd)
-  {
-    if(bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: nightStart == nightEnd '%d', return false", nightEnd);
-
-    return (bNight = false);
-  }
-    
-  if(0 == nightStart)
-  {
-    if(hour(local) >= nightStart && hour(local) < nightEnd)
-    {
-      if(!bNight)
-        serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' && hour(local) < nightEnd '%d', return true", nightStart, nightEnd);
-      
-      return (bNight = true);
-    }
-
-    if(bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: 0 == nightStart '%d', nightEnd '%d', return false", nightStart, nightEnd);
-
-    return (bNight = false);
-  }
-
-  if(0 == nightEnd)
-  {
-    if(hour(local) >= nightStart && hour(local) > nightEnd)
-    {
-      if(!bNight)
-         serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' &&  hour(local) > nightEnd '%d', return true", nightStart, nightEnd);
-      
-      return (bNight = true);
-    }
-
-    serialTrace.Log(T_DEBUG, "IsNight: nightStart '%d', 0 == nightEnd '%d', return false", nightStart, nightEnd);
-
-    return (bNight = false);
-  }
-  
-  if(hour(local) >= nightStart || hour(local) <= nightEnd)
-  {
-    if(!bNight)
-      serialTrace.Log(T_DEBUG, "IsNight: hour(local) >= nightStart '%d' || hour(local) <= nightEnd '%d', return true", nightStart, nightEnd);
-    return (bNight = true);
-  }
-
-  if(bNight)
-    serialTrace.Log(T_DEBUG, "IsNight: nightStart '%d', nightEnd '%d', return false", nightStart, nightEnd);
-  
-  return (bNight = false);
-}
-
 /*
    ------------------------------------------------------------------------------
    Configuration parameters configured by the WiFiManager and stored in the FS
@@ -187,7 +137,7 @@ char ntp_server[50] = DEFAULT_NTP;
 char blynk_token[33] = "YOUR_BLYNK_TOKEN";
 
 bool IsConfigMode = false;
-bool IsTestMode = false;
+ClockMode clockMode = eCM_clock;
 
 char station_name[50] = DEFAULT_STATIONNAME;
 

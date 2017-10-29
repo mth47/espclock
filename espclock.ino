@@ -14,6 +14,11 @@
 #include <Ticker.h>
 Ticker ticker;
 
+#include "TVsim.h"
+TVsim tv;
+
+#include <time.h>
+
 #ifdef ENABLE_BLYNK
 
   #ifdef TRACE
@@ -57,12 +62,24 @@ const int OPC_BUFFER_SIZE = OPC_MAX_PIXELS * 3 + OPC_HEADER_BYTES;
  * ------------------------------------------------------------------------------
  */
 
-bool displayClock = true;
-
 /*
  * ------------------------------------------------------------------------------
  * End Configuration Section
  * ------------------------------------------------------------------------------
+*/
+
+
+/*
+* ------------------------------------------------------------------------------
+* Declerations
+* ------------------------------------------------------------------------------
+*/
+uint32_t HandleSunRise();
+void StopSunRise(bool bShowChange = true);
+/*
+* ------------------------------------------------------------------------------
+* End Declerations
+* ------------------------------------------------------------------------------
 */
 
 //------------------------------------------------------------------------------
@@ -134,7 +151,10 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
           nightEnd = DEFAULT_NIGHT_END;
 
         if(0 != json["station_name"].as<const char*>())
-          strcpy(station_name, json["station_name"]);          
+          strcpy(station_name, json["station_name"]);     
+
+        tmp = json["bSunRise"];
+        (1 == tmp) ? bSunRise = true : bSunRise = false;
 
         serialTrace.Log(T_INFO, "parsed json");
           
@@ -179,6 +199,11 @@ void SaveTheConfig(CRGB ledcolor)
   
   json["station_name"] = station_name;
 
+  if (bSunRise)
+      json["bSunRise"] = 1;
+  else
+      json["bSunRise"] = 0;
+
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile)
   {
@@ -205,10 +230,30 @@ Timezone CE(CEST, CET);
 
 CFadeAnimation ani;
 
+void SetBrightness(uint8_t br)
+{
+    if (eCM_clock == clockMode || eCM_opc == clockMode)
+    {
+        serialTrace.Log(T_INFO, "SetBrightness - New value %d", br);
+        FastLED.setBrightness(br);
+    }
+    else if (eCM_test == clockMode)
+    {
+        serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TEST);
+        FastLED.setBrightness(BRIGHTNESS_TEST);
+    }
+    else if (eCM_tv == clockMode)
+    {
+        serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TVSIM);
+        FastLED.setBrightness(BRIGHTNESS_TVSIM);
+    }
+}
+
 void updateBrightness(bool force=false)
 {
   static bool bDay=true;
   bool bConfigChanged = false; // we should not change write the config, if nothing changed
+
 
   time_t local(CE.toLocal(now()));  
   
@@ -227,7 +272,7 @@ void updateBrightness(bool force=false)
       if (true == Blynk.connected())
         Blynk.virtualWrite(V1, brightness);
 #endif
-      FastLED.setBrightness(brightness);
+      SetBrightness(brightness);
       bDay = false;  
     }
   }
@@ -237,18 +282,54 @@ void updateBrightness(bool force=false)
       if (false == bDay || true == force)
       {
           Serial.println("Updating the brightness for the day.");
-          if (brightness != brightnessDay)
-              bConfigChanged = true;
 
-          brightness = brightnessDay;
+          if (bSunRise)
+          {
+              // we do like the wake up by light at workdays only
+              timeDayOfWeek_t d = (timeDayOfWeek_t) weekday();
+              if (dowMonday >= d <= dowFriday)
+              {
+                  holdTime = 0;
+                  // start dark
+                  SetBrightness(1);
+                  // tell the main loop to run the sunrise
+                  bRunSunRise = true;
+              }
+          }
+          else
+          {
+              if (brightness != brightnessDay)
+                  bConfigChanged = true;
+
+              brightness = brightnessDay;
 
 #ifdef ENABLE_BLYNK
-          if (true == Blynk.connected())
-              Blynk.virtualWrite(V1, brightness);
+              if (true == Blynk.connected())
+                  Blynk.virtualWrite(V1, brightness);
 #endif
-          FastLED.setBrightness(brightness);
+              SetBrightness(brightness);
+          }
+
           bDay = true;
       }
+  }
+
+  // the mode might have changed, so we might have to adjust brightness
+  uint8_t cBr = FastLED.getBrightness();
+  if (eCM_clock == clockMode || eCM_opc == clockMode)
+  {
+      if(brightness != cBr)
+          SetBrightness(brightness);
+  }
+  else if (eCM_test == clockMode)
+  {
+      if (BRIGHTNESS_TEST != cBr)
+          SetBrightness(BRIGHTNESS_TEST);
+  }
+  else if (eCM_tv == clockMode)
+  {
+      if (BRIGHTNESS_TVSIM != cBr)
+          SetBrightness(BRIGHTNESS_TVSIM);
   }
 
   if(bConfigChanged)
@@ -438,14 +519,14 @@ void cbOpcClientConnected(WiFiClient& client)
 #else
   Serial.println("(IP Unknown)");
 #endif
-  displayClock = false;
+  clockMode = eCM_opc;
 }
 
 // Callback when a client is disconnected
 void cbOpcClientDisconnected(OpcClient& opcClient) {
   Serial.print("::cbOpcClientDisconnected(): Client Disconnected: ");
   Serial.println(opcClient.ipAddress);
-  displayClock = true;
+  clockMode = eCM_clock;
   clock.update(true);
   ani.transform(leds, leds_target, NUM_LEDS, true);
 }
@@ -573,13 +654,24 @@ OpcServer opcServer = OpcServer(server, OPC_CHANNEL, opcClients, OPC_MAX_CLIENTS
 WebServer wsrv;
 
 // test mode
-void toggleTestMode() 
+void toggleMode(ClockMode mode)
 {
-  if(!IsTestMode)
+  if (eCM_clock == mode && eCM_clock != clockMode)
+  {
+      serialTrace.Log(T_INFO, "Enable Clock Mode");
+      clockMode = eCM_clock;
+      clock.update(true);
+      ani.transform(leds, leds_target, NUM_LEDS, true);
+      FastLED.show();
+
+      return;
+  }
+  
+  if(eCM_test == mode && eCM_test != clockMode)
   {
     serialTrace.Log(T_INFO, "Enable Test Mode"); 
-    IsTestMode = true;
-    displayClock = false;
+    StopSunRise();
+    clockMode = eCM_test;
     for(uint8_t i = 0; i < NUM_LEDS; i++)
     {
       leds[i].r = 255;
@@ -587,22 +679,27 @@ void toggleTestMode()
       leds[i].b = 36;
     }
     ani.transform(leds, leds_target, NUM_LEDS, true);
-    FastLED.show(5); // low brightness to reduce current consumption
-  }
-  else
-  {
-    IsTestMode = false;
-    serialTrace.Log(T_INFO, "Disable Test Mode"); 
-    clock.update(true);
-    ani.transform(leds, leds_target, NUM_LEDS, true);
     FastLED.show();
-    displayClock = true;
-  }  
+
+    return;
+  }
+
+  if (eCM_tv == mode && eCM_tv != clockMode)
+  {
+      serialTrace.Log(T_INFO, "Enable TVsim Mode");
+      StopSunRise();
+      clockMode = eCM_tv;
+      tv.run();
+
+      return;
+  }
 }
 
 void HandleWebSvrReq(WebServer::wsRequest request)
 {
-  if(!request.HasColorChanged() && !request.HasBrightnessChanged() && !request.HasNtpChanged() && !request.m_bEnableConfigMode && !request.m_bToggleTestMode && !request.HasDialectChanged() && !request.HasNightChanged())
+  if(!request.HasColorChanged() && !request.HasBrightnessChanged() && !request.HasNtpChanged() && 
+      !request.m_bEnableConfigMode && clockMode == request.m_mode && !request.HasDialectChanged() && 
+      !request.HasNightChanged() && !request.m_bInverseDisplay && !request.m_bSetSunRise)
     return;
 
   bool bSaveConfigChanges = false;
@@ -635,15 +732,15 @@ void HandleWebSvrReq(WebServer::wsRequest request)
   
   if(request.m_bEnableConfigMode)
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Config Mode requested.");
+    serialTrace.Log(T_INFO, "HandleWebSvrReq - Config Mode requested.");
     IsConfigMode = true;
     bSaveConfigChanges = true;
   }
   
-  if(request.m_bToggleTestMode)
+  if(clockMode != request.m_mode)
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Toggle Test Mode requested.");
-    toggleTestMode();
+    serialTrace.Log(T_INFO, "HandleWebSvrReq - Toggle Test Mode requested.");
+    toggleMode(request.m_mode);
   }
 
   if(request.HasDialectChanged())
@@ -662,12 +759,89 @@ void HandleWebSvrReq(WebServer::wsRequest request)
     bSaveConfigChanges = true;
   }
 
+  if (request.m_bInverseDisplay && eCM_clock == clockMode)
+  {  
+    serialTrace.Log(T_INFO, "Enable/Disable Inverse Clock Mode");
+    clock.SetInverse();
+    clock.update(true);
+    ani.transform(leds, leds_target, NUM_LEDS, true);
+    FastLED.show();
+  }
+
+  if (request.m_bSetSunRise && eCM_clock == clockMode)
+  {
+    serialTrace.Log(T_INFO, "Enable/Disable Sunrise Clock Mode");
+    if (bSunRise)
+        bSunRise = false;
+    else
+        bSunRise = true;
+
+    bSaveConfigChanges = true;
+  }
+
   if(bSaveConfigChanges)
     SaveTheConfig(clock.getColor());
 }
 
 //------------------------------------------------------------------------------
 #endif
+
+
+//------------------------------------------------------------------------------
+// SUN RISE implemenation
+// returns the number of milli seconds until the next call is required
+// bDone == false as long as the sun rise processing is needed
+uint32_t HandleSunRise()
+{
+    static uint32_t progress = 0;
+
+    if (0 == progress)
+    {
+        ++progress;
+        clock.setBgColor(color_WarmWhile);
+        clock.SetDualColor();
+        clock.update(true);
+        FastLED.setBrightness(progress);
+        return ONE_SUNRISE_STEP_IN_MS;
+    }
+    else
+    {
+        ++progress;
+        FastLED.setBrightness(progress);
+
+        if (progress >= NUM_SUNRISE_STEPS)
+        {
+            // the last step has been achieved
+            StopSunRise(false);
+            progress = 0;
+            return 0;
+        }
+        else
+            return ONE_SUNRISE_STEP_IN_MS;
+    }
+
+}
+
+void StopSunRise(bool bShowChange)
+{
+    if (bRunSunRise)
+    {
+        bRunSunRise = false;
+        holdTime = 0;
+        clock.setBgColor(CRGB::Black);
+        clock.SetDualColor();
+        clock.update(true);
+        updateBrightness(true);
+        if (bShowChange)
+        {
+            ani.transform(leds, leds_target, NUM_LEDS, true);
+            FastLED.show();
+        }
+    }
+}
+
+// SUN RISE implemenation
+//------------------------------------------------------------------------------
 
 void setup () 
 {
@@ -858,6 +1032,12 @@ void setup ()
   serialTrace.Log(T_INFO, "Temperature = %s", temp);
   delete [] temp; temp = 0;
 
+  // setup TV simulation
+  tv.init();
+
+  // test sun rise
+  // bRunSunRise = true;
+
   ticker.detach();
 
   serialTrace.Log(T_DEBUG, "Setup finsihed.");
@@ -872,21 +1052,50 @@ void loop ()
     //TODO what shall we do in this case? 
   }
 
-  updateBrightness();
+  if (!bRunSunRise)
+    updateBrightness();
 
-  if(displayClock)
+  if(eCM_clock == clockMode)
   {
     bool changed = clock.update();
+
+    if (bRunSunRise)
+    {
+        if (holdTime <= millis())
+        {
+            holdTime = millis() + HandleSunRise();
+            changed = true;
+        }
+    }
     
     ani.transform(leds, leds_target, NUM_LEDS, changed);
     
     FastLED.show();
   }
+  else if (eCM_test == clockMode)
+      FastLED.show();
+  else if (eCM_tv == clockMode)
+  {
+      // the esp has a software and a hardware watchdog
+      // while we can disable and reset the software watchdog
+      // ESP.wdtDisable();
+      // ESP.wdtEnable(milli seconds);
+      // the hardware watchdog will reset the esp after 6 seconds
+      // the software watchdog will reset the esp after 2 seconds
+      if (holdTime <= millis())
+      {
+          //uint32_t start = millis();
+          //uint32_t ht = tv.run();
+          holdTime = millis() + tv.run();
+          //uint32_t end = millis();
+          //serialTrace.Log(T_INFO, "TVSim: picture calculation took = '%d' ms.", end - start);
+          //serialTrace.Log(T_INFO, "TVSim: time until next picture calculation = '%d' ms.", ht);
+          //holdTime = millis() + ht;
+      }
+  }
   else
   {
-      // serialTrace.Log(T_ERROR, "loop - Opc Mode - not supported right now????");
-      if(IsTestMode)      
-        FastLED.show();
+      // serialTrace.Log(T_ERROR, "loop - Opc Mode - not supported right now????");   
   }
 
 #ifdef ENABLE_OPC

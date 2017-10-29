@@ -13,12 +13,19 @@ public:
 
   virtual bool setup(CRGB* leds, int numLEDs);
   virtual bool setup_small(CRGB* leds, int numLEDs);
-  virtual bool update(bool force=false);
+  virtual bool update(bool force = false);
 
   CRGB getColor();
 
   void setColor(const CRGB& color);
   void setTimezone(Timezone* pTZ);
+  void setBgColor(const CRGB& bgColor);
+
+  void SetInverse();
+  bool GetInverse();
+
+  void SetDualColor();
+  bool GetDualColor();
 
   enum eDialect
   {
@@ -36,9 +43,9 @@ public:
   const char* GetClockString ();
 
 private:
-  void compose(const int arrayToAdd[]);
-  void display_hour(const int displayHour, const int minute, const int hour);
-  void display_time(const int hour, const int minute);
+  void compose(const int arrayToAdd[], bool bInverse);
+  void display_hour(const int displayHour, const int minute, const int hour, bool bInverse);
+  void display_time(const int hour, const int minute, bool bInverse);
   const char* GetHourString(int h, int m);
 
   bool m_bSmallClock;
@@ -46,6 +53,9 @@ private:
   int   m_numLEDs;
 
   CRGB  m_color;
+  CRGB m_bgColor;
+  bool m_bInverse;
+  bool m_bDualColor;
 
   int m_currentMinute;
 
