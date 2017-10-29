@@ -1,26 +1,29 @@
 ## **espclock**
-### **Added:**
+### **Features**
+*	OPC control
+*	Blync control
+*	Color and Brightness Selection
+*	Day-Night Switch
 *	Compliler switch for OPC, listening on port 7890
 *	Compiler switch for Blynk, connects to blync-cloud.com:8442
 *	Level based serial tracing for debugging purposes, compiler switch for runtime mode
-*	Complete configuration gets permanently safed on clock, not only Blynk server  
+*	Clock configuration gets permanently safed on clock, not on only Blynk server
 *	Locally hosted WebServer incl. compiler switch, listens on port 80 (http)
 *	Automatic web site refresh
-*	Enable Config AP on request
+*	Enables Configuration-Access-Point on request
 *	Temperature is shown on web page
 *	TestMode, all leds, weak brightness
-*	HTML5 Color Picker added, does not work with older browser versions.
-*	Choose german dialect on web server
+*	HTML5 Color Picker added, does not work with older browser versions
+*	Supports three german dialects
 *	Select day and night time on web server
-*	some website beautifying
-*	Configurable station name on config page
+*	Configurable station name
 *	Display current time on the web page
 *	Inverse Clock Display
-*	tv simulation for times where no one is at home
+*	TV simulation for times where no one is at home
 *	Sun Rise Mode: Slowing increasing brightness while switching into day mode
 
 ### **Todo:**
-*	pick differnt color for the night
+*	night color selection, different to day color
 *	buttons for pre-defined colors, like warm-white (255, 127, 36)
 *	optimize programming (webserver code structuring, reduce globals and optimize for speed)
 *	weak glowing initials or name in unused leds, always, birthday only???
@@ -36,10 +39,11 @@
 *	Reads older config file versions w/o cores :)
 *	Wrong day/night switch at certain conditions
 
-### **Note:**
-		Without WLAN available during start-up an Access Point and the Configuration WebServer are started.
-		Depending on the enabled service different ports are opened and/or connections established.
-		In case the local router or any other device in the intranet can act as ntp server and OPC and Blynk functionality
-		are disabled no incoming or outgoing internet access is required.
-		If so, the configuration can only be changed having a web client being connected to the same local network. 
-		For a clock this should be good enough.
+### **Notes:**
+1.	This clock does not require internet access.
+	Depending on the enabled services (e.g. NTP, OPC, Blync) different ports are opened and connections established.
+	In case the local router or any other device in the LAN can act as ntp server and OPC and Blynk disabled 
+	no incoming or outgoing internet access is needed.
+2.	The first start and every subsequent start where no WLAN connection can be established, the clock will start its own
+	Access Point presenting the configuration page.
+	If need be, the configuration Access Point can be triggered at any time via the clock's webserver plus a hardware reset.
