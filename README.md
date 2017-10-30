@@ -23,6 +23,7 @@
 *	Sun Rise Mode: Slowing increasing brightness while switching into day mode
 
 ### **Todo:**
+*	time based start and end of TV simulation including random variation of both times
 *	night color selection, different to day color
 *	buttons for pre-defined colors, like warm-white (255, 127, 36)
 *	optimize programming (webserver code structuring, reduce globals and optimize for speed)
@@ -48,7 +49,8 @@
 2.	The first start and every subsequent start where no WLAN connection can be established, the clock will start its own
 	Access Point presenting the configuration page.
 	If need be, the configuration Access Point can be triggered at any time via the clock's webserver plus a hardware reset.
-3.	Two features missing for the Release of v1.0.
-	1. night color selection
-	2. buttons for pre-defined colors
+3.	Three main features missing for the Release of v1.0.
+	1. time based start and end of TV simulation including random variation of both times
+	2. night color selection
+	3. buttons for pre-defined colors
 	

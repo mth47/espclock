@@ -126,6 +126,13 @@ bool IsNight(time_t local)
   return (bNight = false);
 } 
 
+bool IsStillSunriseTime(time_t local)
+{
+    //serialTrace.Log(T_INFO, "IsStillSunriseTime: GetMinOfTime '%d', nightEnd '%d', sunrise end '%d'", GetMinOfTime(local), nightEnd, ((ONE_SUNRISE_STEP_IN_MS / 1000 * NUM_SUNRISE_STEPS) / 60));
+    // we have the time in MINUTES!!!, so can simply compare with the max milli seconds the sunrise will need
+    return (GetMinOfTime(local) < (nightEnd + ((ONE_SUNRISE_STEP_IN_MS / 1000 * NUM_SUNRISE_STEPS) / 60)));
+}
+
 /*
    ------------------------------------------------------------------------------
    Configuration parameters configured by the WiFiManager and stored in the FS

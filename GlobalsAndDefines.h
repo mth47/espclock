@@ -111,6 +111,7 @@ bool IsValidHour(uint8_t h);
 bool IsValidDayMin(uint16_t m);
 // requires nightStart and nightEnd in minutes of the day
 bool IsNight(time_t local);
+bool IsStillSunriseTime(time_t local);
 
 /*
  * ------------------------------------------------------------------------------

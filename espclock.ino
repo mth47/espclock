@@ -283,12 +283,13 @@ void updateBrightness(bool force=false)
       {
           Serial.println("Updating the brightness for the day.");
 
-          if (bSunRise)
+          if (bSunRise && IsStillSunriseTime(local))
           {
               // we do like the wake up by light at workdays only
               timeDayOfWeek_t d = (timeDayOfWeek_t) weekday();
               if (dowMonday >= d <= dowFriday)
               {
+                  serialTrace.Log(T_INFO, "updateBrightness: start sunrise");
                   holdTime = 0;
                   // start dark
                   SetBrightness(1);
@@ -314,26 +315,29 @@ void updateBrightness(bool force=false)
       }
   }
 
-  // the mode might have changed, so we might have to adjust brightness
-  uint8_t cBr = FastLED.getBrightness();
-  if (eCM_clock == clockMode || eCM_opc == clockMode)
+  if (!bRunSunRise)
   {
-      if(brightness != cBr)
-          SetBrightness(brightness);
-  }
-  else if (eCM_test == clockMode)
-  {
-      if (BRIGHTNESS_TEST != cBr)
-          SetBrightness(BRIGHTNESS_TEST);
-  }
-  else if (eCM_tv == clockMode)
-  {
-      if (BRIGHTNESS_TVSIM != cBr)
-          SetBrightness(BRIGHTNESS_TVSIM);
+      // the mode might have changed, so we might have to adjust brightness
+      uint8_t cBr = FastLED.getBrightness();
+      if (eCM_clock == clockMode || eCM_opc == clockMode)
+      {
+          if (brightness != cBr)
+              SetBrightness(brightness);
+      }
+      else if (eCM_test == clockMode)
+      {
+          if (BRIGHTNESS_TEST != cBr)
+              SetBrightness(BRIGHTNESS_TEST);
+      }
+      else if (eCM_tv == clockMode)
+      {
+          if (BRIGHTNESS_TVSIM != cBr)
+              SetBrightness(BRIGHTNESS_TVSIM);
+      }
   }
 
-  if(bConfigChanged)
-    SaveTheConfig(clock.getColor());
+   if (bConfigChanged)
+      SaveTheConfig(clock.getColor());
 }
 
 
@@ -791,34 +795,38 @@ void HandleWebSvrReq(WebServer::wsRequest request)
 // SUN RISE implemenation
 // returns the number of milli seconds until the next call is required
 // bDone == false as long as the sun rise processing is needed
+static uint32_t sr_progress = 0;
+
 uint32_t HandleSunRise()
 {
-    static uint32_t progress = 0;
+    //serialTrace.Log(T_INFO, "HandleSunRise: progress = '%d'", sr_progress);
 
-    if (0 == progress)
+    if (0 == sr_progress)
     {
-        ++progress;
+        ++sr_progress;
         clock.setBgColor(color_WarmWhile);
         clock.SetDualColor();
         clock.update(true);
-        FastLED.setBrightness(progress);
+        FastLED.setBrightness(sr_progress);
         return ONE_SUNRISE_STEP_IN_MS;
     }
-    else
-    {
-        ++progress;
-        FastLED.setBrightness(progress);
+    
+    ++sr_progress;
+    FastLED.setBrightness(sr_progress);
 
-        if (progress >= NUM_SUNRISE_STEPS)
-        {
-            // the last step has been achieved
-            StopSunRise(false);
-            progress = 0;
-            return 0;
-        }
-        else
-            return ONE_SUNRISE_STEP_IN_MS;
+    if (sr_progress < 10)
+    {
+        return ONE_SUNRISE_STEP_IN_MS + 1000;
     }
+
+    if (sr_progress >= NUM_SUNRISE_STEPS)
+    {
+        // the last step has been achieved
+        StopSunRise(false);
+        return 0;
+    }
+
+    return ONE_SUNRISE_STEP_IN_MS;
 
 }
 
@@ -826,7 +834,10 @@ void StopSunRise(bool bShowChange)
 {
     if (bRunSunRise)
     {
+        serialTrace.Log(T_INFO, "StopSunRise: stop sunrise");
+        sr_progress = 0;
         bRunSunRise = false;
+        //serialTrace.Log(T_INFO, "StopSunRise: bRunSunRise = false");
         holdTime = 0;
         clock.setBgColor(CRGB::Black);
         clock.SetDualColor();
@@ -859,7 +870,8 @@ void setup ()
   //FastLED.setCorrection(0xF0FFF7);
   //FastLED.setTemperature(Tungsten40W);
 
-  FastLED.setBrightness(brightness);
+  //FastLED.setBrightness(brightness);
+  updateBrightness(true);
 
   fill_solid( &(leds[0]), NUM_LEDS, CRGB::Black);
   FastLED.show();
@@ -1053,7 +1065,10 @@ void loop ()
   }
 
   if (!bRunSunRise)
-    updateBrightness();
+  {
+      //serialTrace.Log(T_INFO, "loop: bRunSunRise = false");
+      updateBrightness();
+  }
 
   if(eCM_clock == clockMode)
   {
