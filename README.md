@@ -29,6 +29,7 @@
 *	weak glowing initials or name in unused leds, always, birthday only???
 *	second pulse in one of the unused leds, indvidual color or just red
 *	Rainbow, dropping rain, falling snow, whatever
+*	individual Sun-Rise selection for every day of the week
 
 ### **Fixed:** 
 *	Execute Blynk only after the server connection has been established
@@ -47,3 +48,7 @@
 2.	The first start and every subsequent start where no WLAN connection can be established, the clock will start its own
 	Access Point presenting the configuration page.
 	If need be, the configuration Access Point can be triggered at any time via the clock's webserver plus a hardware reset.
+3.	Two features missing for the Release of v1.0.
+	1. night color selection
+	2. buttons for pre-defined colors
+	
