@@ -1,4 +1,5 @@
 #include "CNTPClient.h"
+#include "GlobalsAndDefines.h"
 
 //NTP functions copied from the TimeNTP_ESP8266WiFi example of the Time library.
 
@@ -17,10 +18,9 @@ CNTPClient::~CNTPClient()
 bool CNTPClient::setup(IPAddress timeServer)
 {
   setTimeServer(timeServer);
-  Serial.println("CNTPClient::Setup() - Starting UDP");
+  serialTrace.Log(T_INFO, "CNTPClient::Setup() - Starting UDP");
   Udp.begin(localPort);
-  Serial.print("CNTPClient::Setup() - Local port: ");
-  Serial.println(Udp.localPort());
+  serialTrace.Log(T_INFO, "CNTPClient::Setup() - Local port: '%d'", Udp.localPort());
 }
 
 void CNTPClient::setTimeServer(IPAddress timeServer)
@@ -31,13 +31,14 @@ void CNTPClient::setTimeServer(IPAddress timeServer)
 time_t CNTPClient::now()
 {
   while (Udp.parsePacket() > 0) ; // discard any previously received packets
-  Serial.println("CNTPClient::now() - Transmit NTP Request");
+  serialTrace.Log(T_DEBUG, "CNTPClient::now() - Transmit NTP Request");
   sendNTPpacket(m_timeServer);
   uint32_t beginWait = millis();
   while (millis() - beginWait < 1500) {
     int size = Udp.parsePacket();
-    if (size >= NTP_PACKET_SIZE) {
-      Serial.println("CNTPClient::now() - Receive NTP Response");
+    if (size >= NTP_PACKET_SIZE) 
+    {
+      serialTrace.Log(T_DEBUG, "CNTPClient::now() - Receive NTP Response");
       Udp.read(packetBuffer, NTP_PACKET_SIZE);  // read packet into the buffer
       unsigned long secsSince1900;
       // convert four bytes starting at location 40 to a long integer
@@ -48,7 +49,7 @@ time_t CNTPClient::now()
       return secsSince1900 - 2208988800UL;
     }
   }
-  Serial.println("CNTPClient::now() - No NTP Response :-(");
+  serialTrace.Log(T_ERROR, "CNTPClient::now() - No NTP Response :-(");
   return 0; // return 0 if unable to get the time
 }
 

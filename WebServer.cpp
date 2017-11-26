@@ -139,8 +139,6 @@ void WebServer::Run(wsRequest& request)
   ///////////////////////
   else
   {    
-   
-    CRGB color = clock.getColor();
     ulReqcount++;
     sResponse  =  F("<html><head>"
                       "<title>WordClock Control</title>");
@@ -148,58 +146,128 @@ void WebServer::Run(wsRequest& request)
     
     //AddColorPickerScript(sResponse, "#FF7F24", "colorpicker");
     
-    sResponse  += F("<base href=\"/\">"
-                  "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js\"></script>"
-                  "<script language=\"javascript\" type=\"text/javascript\">"
-                  "$(document).ready(function(){"
-                  "$(\"#check_slider\").click(function() {"
-                  "$('tr:nth-child(2)').toggle(\"slow\");"
-                  "$('tr:nth-child(3)').toggle(\"slow\");"
-                  "$('tr:nth-child(4)').toggle(\"slow\");"
-                  "$('tr:nth-child(5)').toggle();"
-                  "});"
-                  "$(\"#check_picker\").click(function() {"
-                  "$('tr:nth-child(5)').toggle(\"slow\");"
-                  "$('tr:nth-child(2)').toggle();"
-                  "$('tr:nth-child(3)').toggle();"
-                  "$('tr:nth-child(4)').toggle();"
-                  "});"
-                  "});"
-                  "</script>"
-                  "</head><body bgcolor=white>"
-                  // this color pciker does only work with jQuery whcih requires a jquery library
-                  //"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.js\"></script>"
-                  //"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.css\">"
-                  "<font color=\"#000000\">"
-                  "<meta name=\"viewport\" content=\"width=device-width, height=device-height initial-scale=1.0, user-scalable=yes\">"
-                  "<h1>");
+    sResponse += F("<base href=\"/\">"
+                "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js\"></script>"
+                "<script language=\"javascript\" type=\"text/javascript\">"
+                "$(document).ready(function(){"
+                "$(\"#check_slider\").change(function() {"
+                "if ($('#check_day').is(':checked')) {"
+                "$('tr:nth-child(3)').toggle(\"slow\");"
+                "$('tr:nth-child(4)').toggle(\"slow\");"
+                "$('tr:nth-child(5)').toggle(\"slow\");"
+                "$('tr:nth-child(6)').toggle();"
+                "} else {"
+                "$('tr:nth-child(7)').toggle(\"slow\");"
+                "$('tr:nth-child(8)').toggle(\"slow\");"
+                "$('tr:nth-child(9)').toggle(\"slow\");"
+                "$('tr:nth-child(10)').toggle();"
+                "}});"
+                "$(\"#check_picker\").change(function() {"
+                "if ($(\"#check_day\").is(\":checked\")) {"
+                "$('tr:nth-child(6)').toggle(\"slow\");"
+                "$('tr:nth-child(5)').toggle();"
+                "$('tr:nth-child(4)').toggle();"
+                "$('tr:nth-child(3)').toggle();"
+                "} else {"
+                "$('tr:nth-child(10)').toggle(\"slow\");"
+                "$('tr:nth-child(9)').toggle();"
+                "$('tr:nth-child(8)').toggle();"
+                "$('tr:nth-child(7)').toggle();"
+                "}});"
+                "$(\"#warmwhite\").click(function() {"
+                "if ($(\"#check_day\").is(\":checked\")) {"
+                "$(\"#cPD\").val(\"#FF7F24\");"
+                "$(\"#arRD\").val(\"255\");"
+                "$(\"#aiRD\").val(\"255\");"
+                "$(\"#arGD\").val(\"127\");"
+                "$(\"#aiGD\").val(\"127\");"
+                "$(\"#arBD\").val(\"36\");"
+                "$(\"#aiBD\").val(\"36\");"
+                "} else {"
+                "$(\"#cPN\").val(\"#FF7F24\");"
+                "$(\"#arRN\").val(\"255\");"
+                "$(\"#aiRN\").val(\"255\");"
+                "$(\"#arGN\").val(\"127\");"
+                "$(\"#aiGN\").val(\"127\");"
+                "$(\"#arBN\").val(\"36\");"
+                "$(\"#aiBN\").val(\"36\");"
+                "}});"
+                /*"$(\"#mTVS\").change(function() {"
+                "$('tr:nth-child(24)').show(\"slow\");"
+                "$('tr:nth-child(25)').show(\"slow\");"
+                "});"
+                "$(\"#mClock\").change(function() {"
+                "$('tr:nth-child(24)').hide(\"slow\");"
+                "$('tr:nth-child(25)').hide(\"slow\");"
+                "});"
+                "$(\"#mTest\").change(function() {"
+                "$('tr:nth-child(24)').hide(\"slow\");"
+                "$('tr:nth-child(25)').hide(\"slow\");"
+                    "});"*/
+                "$(\"#check_day\").click(function() {"
+                "if ($(\"#check_slider\").is(\":checked\")) {"
+                "$('tr:nth-child(3)').toggle(\"slow\");"
+                "$('tr:nth-child(4)').toggle(\"slow\");"
+                "$('tr:nth-child(5)').toggle(\"slow\");"
+                "$('tr:nth-child(7)').toggle();"
+                "$('tr:nth-child(8)').toggle();"
+                "$('tr:nth-child(9)').toggle();"
+                "} else {"
+                "$('tr:nth-child(6)').toggle(\"slow\");"
+                "$('tr:nth-child(10)').toggle();"
+                "}});"
+                "$(\"#check_night\").click(function() {"
+                "if ($(\"#check_slider\").is(\":checked\")) {"
+                "$('tr:nth-child(7)').toggle(\"slow\");"
+                "$('tr:nth-child(8)').toggle(\"slow\");"
+                "$('tr:nth-child(9)').toggle(\"slow\");"
+                "$('tr:nth-child(3)').toggle();"
+                "$('tr:nth-child(4)').toggle();"
+                "$('tr:nth-child(5)').toggle();"
+                "} else {"
+                "$('tr:nth-child(10)').toggle(\"slow\");"
+                "$('tr:nth-child(6)').toggle();"
+                "}});"
+                "});"
+                "</script>"
+                "</head><body bgcolor=white>"
+                // this color pciker does only work with jQuery whcih requires a jquery library
+                //"<script src=\"https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.js\"></script>"
+                //"<link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdnjs.cloudflare.com/ajax/libs/spectrum/1.8.0/spectrum.min.css\">"
+                "<font color=\"#000000\">"
+                "<meta name=\"viewport\" content=\"width=device-width, height=device-height initial-scale=1.0, user-scalable=yes\">"
+                "<h1>");
     sResponse  += station_name;
     sResponse += F(" UI</h1><h3 style=\"color:#787878\;\">");
     sResponse  += clock.GetClockString();
     sResponse  += F("</h3>"
-                  "<FONT SIZE=+1>"
-                  // "<form action=\"/\" autocomplete=\"on\">"
-                  //"<form action=\"/\" autocomplete=\"on\">"
-                  // "<form action=\"window.location.assign(location.origin)\" autocomplete=\"on\">"
-                  // "<form action=\"/\" autocomplete=\"on\" onsubmit=\"window.location.href = location.origin; window.setTimeout(window.location.reload(true), 1000);\">"
-                  //"<form action=\"/\" autocomplete=\"on\" onsubmit=\"setTimeout(function() {window.location.href = location.origin; setTimeout(function() {window.location.reload(true)}, 200)}, 1000);\">"
-                  // "<form action=\"\" autocomplete=\"on\" onsubmit=\"setTimeout(function() {window.location.href = location.origin; setTimeout(function() {window.location.reload(true)}, 200)}, 1000);\">"
-                  // "<table frame=\"void\">");
-                  "<form autocomplete=\"on\">"
-                  "<table border=\"0\">"
-                  "<tr><td width=\"120px\">"                  
-                  "<input type=\"radio\" id=\"check_slider\" name=\"ColorChoice\" value=\"Slider\" checked=\"checked\">"
-                  "<label for=\"check_slider\"> RGB Slider </label> "
-                  "</td><td width=\"200px\">"
-                  "<input type=\"radio\" id=\"check_picker\" name=\"ColorChoice\" value=\"Picker\">"
-                  "<label for=\"check_picker\"> RGB Color Picker</label>"
-                  "</td><td width=\"60px\"></td></tr>");
+                "<FONT SIZE=+1>"
+                // "<form action=\"/\" autocomplete=\"on\">"
+                //"<form action=\"/\" autocomplete=\"on\">"
+                // "<form action=\"window.location.assign(location.origin)\" autocomplete=\"on\">"
+                // "<form action=\"/\" autocomplete=\"on\" onsubmit=\"window.location.href = location.origin; window.setTimeout(window.location.reload(true), 1000);\">"
+                //"<form action=\"/\" autocomplete=\"on\" onsubmit=\"setTimeout(function() {window.location.href = location.origin; setTimeout(function() {window.location.reload(true)}, 200)}, 1000);\">"
+                // "<form action=\"\" autocomplete=\"on\" onsubmit=\"setTimeout(function() {window.location.href = location.origin; setTimeout(function() {window.location.reload(true)}, 200)}, 1000);\">"
+                // "<table frame=\"void\">");
+                "<form autocomplete=\"on\">"
+                "<table border=\"0\">"
+                "<tr><td width=\"120px\">"                  
+                "<input type=\"radio\" id=\"check_slider\" name=\"ColorChoice\" value=\"Slider\" checked=\"checked\">"
+                "<label for=\"check_slider\"> RGB Slider </label> "
+                "</td><td width=\"200px\">"
+                "<input type=\"radio\" id=\"check_picker\" name=\"ColorChoice\" value=\"Picker\">"
+                "<label for=\"check_picker\"> RGB Color Picker</label>"
+                "</td><td width=\"60px\"></td></tr>"
+                "<tr><td width=\"120px\">"
+                "<input type=\"radio\" id=\"check_day\" name=\"NDChoice\" value=\"Day\" checked=\"checked\">"
+                "<label for=\"check_day\"> Day Color </label> "
+                "</td><td width=\"200px\">"
+                "<input type=\"radio\" id=\"check_night\" name=\"NDChoice\" value=\"Night\">"
+                "<label for=\"check_night\"> Night Color</label>"
+                "</td><td width=\"60px\"><input type=\"button\" data-inline=\"true\" id=\"warmwhite\" value=\"Warm White\"></td></tr>");
 
     
-    // add color picker, FF7F24 == warm white
-    // AddColorPicker(sResponse, "colorpicker");
-
-    // red slider
+    /*// red slider
     AddSliderControl(sResponse, "#FF0000", "Red", "arRED", "arR", 0, 255, color.r, "aiRED", "aiR");
     
     // green slider
@@ -211,14 +279,19 @@ void WebServer::Run(wsRequest& request)
     //sResponse +=  F("<!-- emtpy row--><tr style=\"border-bottom:1pt solid " TABLE_BORDER_COLOR ";\"><td><br></td><td><br></td><td><br></td></tr>");
 
     // ----------- color picker
-    sResponse +=  F("<tr style=\"display: none;\"><td></td><td><input type=\"color\" name=\"colorPicker\" value=\"");
+    sResponse +=  F("<tr style=\"display: none;\"><td></td><td><input type=\"color\" id=\"cP\" name=\"colorPicker\" value=\"");
 
     String c = RGBToHexString(color);
     serialTrace.Log(T_DEBUG, "WebServer - Current RGB in Hex = %s", c.c_str());
     sResponse +=  c;
     
     sResponse +=  F("\"></td><td></td></tr>");   
-    // ----------- end color picker
+    // ----------- end color picker*/
+
+    // Day Color
+    AddColorControls(sResponse, dayColor, "D", false);
+    // Night Color
+    AddColorControls(sResponse, nightColor, "N", true);
     
     //sResponse  += F("</table><BR><table border=\"0\"><!-- set column size--><tr><td width=\"120px\"></td><td width=\"200px\"></td><td width=\"60px\"></td></tr>");
     sResponse +=  F("<!-- emtpy row--><tr><td><br></td><td><br></td><td><br></td></tr>");
@@ -233,14 +306,14 @@ void WebServer::Run(wsRequest& request)
     AddTwoNumberFields(sResponse, " Night End ", "nightEndH", "nEndH", h, "nightEndM", "nEndM", m, true, true);
     
     // brightness slider
-    AddSliderControl(sResponse, "#000000", "Brightness", "arBright", "arBR", 0, 100, brightness, "aiBRIGHT", "aiBR");
+    AddSliderControl(sResponse, "#000000", "Brightness", "arBright", "arBR", 0, 100, brightness, "aiBRIGHT", "aiBR", false);
 
    
     // brightnessDay slider
-    AddSliderControl(sResponse, ((bIsDay) ? "#000000" : "#787878"), "Brightness Day", "arBrightD", "arBRD", 0, 100, brightnessDay, "aiBRIGHTD", "aiBRD");
+    AddSliderControl(sResponse, ((bIsDay) ? "#000000" : "#787878"), "Brightness Day", "arBrightD", "arBRD", 0, 100, brightnessDay, "aiBRIGHTD", "aiBRD", false);
 
     // brightnessNight slider
-    AddSliderControl(sResponse, ((bIsDay) ? "#787878" : "#000000"), "Brightness Night", "arBrightN", "arBRN", 0, 100, brightnessNight, "aiBRIGHTN", "aiBRN");
+    AddSliderControl(sResponse, ((bIsDay) ? "#787878" : "#000000"), "Brightness Night", "arBrightN", "arBRN", 0, 100, brightnessNight, "aiBRIGHTN", "aiBRN", false);
 
     //sResponse  += F("</table><BR><table border=\"0\"><!-- set column size--><tr><td width=\"120px\"></td><td width=\"200px\"></td><td width=\"60px\"></td></tr>");
     sResponse +=  F("<!-- emtpy row--><tr><td><br></td><td><br></td><td><br></td></tr>");
@@ -281,6 +354,18 @@ void WebServer::Run(wsRequest& request)
     sResponse += "</td><td>";
     AddRadioButton(sResponse, "TV Sim Mode", "mode", "mTVS", "tvs", (eCM_tv == clockMode) ? true : false);
     sResponse += "</td></tr>";
+
+    // TVSim  start and end time
+    // night start hour, row 24
+    h = GetHourOfDayMin(tvStart);
+    m = GetMinOfDayMin(tvStart);
+    AddTwoNumberFields(sResponse, " TVSim Start ", "tvStartH", "ntvStartH", h, "tvStartM", "ntvStartM", m, true, true, false);
+    // night end hour, row 25
+    h = GetHourOfDayMin(tvEnd);
+    m = GetMinOfDayMin(tvEnd);
+    AddTwoNumberFields(sResponse, " TVSim End ", "tvEndH", "ntvEndH", h, "tvEndM", "ntvEndM", m, true, true, false);    
+       
+
     /*if(IsTestMode)
       AddCheckBox(sResponse, "Toggle Test Mode", "TestMode", "TsM", "TEST", "ON", "#787878");
     else
@@ -319,14 +404,20 @@ void WebServer::Run(wsRequest& request)
       //SetIntFn = &wsRequest::SetColorRed;
       
       bool bSlider = UseSlider(sCmd, "ColorChoice=");
+      request.m_bDayColor = IsDayColor(sCmd, "NDChoice=");
       
       if(bSlider)
       {
-        ReadSliderValue(sCmd, "arRED=", request, &wsRequest::SetColorRed);
-        ReadSliderValue(sCmd, "arGREEN=", request, &wsRequest::SetColorGreen);
-        ReadSliderValue(sCmd, "arBLUE=", request, &wsRequest::SetColorBlue);
-        // skip color picker
-        SkipValue(sCmd);
+          ReadSliderValue(sCmd, "arREDD=", request, &wsRequest::SetColorRed);
+          ReadSliderValue(sCmd, "arGREEND=", request, &wsRequest::SetColorGreen);
+          ReadSliderValue(sCmd, "arBLUED=", request, &wsRequest::SetColorBlue);
+          // skip color picker day
+          SkipValue(sCmd);
+          ReadSliderValue(sCmd, "arREDN=", request, &wsRequest::SetColorRedN);
+          ReadSliderValue(sCmd, "arGREENN=", request, &wsRequest::SetColorGreenN);
+          ReadSliderValue(sCmd, "arBLUEN=", request, &wsRequest::SetColorBlueN);
+          // skip color picker night
+          SkipValue(sCmd);        
       }
       // reading color picker can only be exclusive, RGB slider or color picker, as I cannot update its value dynamically on the client
       else
@@ -335,10 +426,11 @@ void WebServer::Run(wsRequest& request)
         SkipValue(sCmd);
         SkipValue(sCmd);
         SkipValue(sCmd);
+        ReadColorPicker(sCmd, "colorPickerD=", request);
         SkipValue(sCmd);
         SkipValue(sCmd);
         SkipValue(sCmd);
-        ReadColorPicker(sCmd, "colorPicker=", request);
+        ReadColorPicker(sCmd, "colorPickerN=", request);
       }
 
       // night start hour
@@ -385,8 +477,18 @@ void WebServer::Run(wsRequest& request)
       else if (String("tvs") == param)
           request.m_mode = eCM_tv;
 
+      // tv start hour
+      h = 0; m = 0;
+      ReadNumberField(sCmd, "tvStartH=", h);
+      ReadNumberField(sCmd, "tvStartM=", m);
+      request.SetTvStart(GetMinOfTime(h, m));
+
+      // tv end hour
+      ReadNumberField(sCmd, "tvEndH=", h);
+      ReadNumberField(sCmd, "tvEndM=", m);
+      request.SetTvEnd(GetMinOfTime(h, m));
+
       param = ReadValueAsString(sCmd, "dialect=");
-      serialTrace.Log(T_DEBUG, "WebServer - new dialect == %s", param.c_str());
       if (String("West") == param)
         request.SetDialect(CClockDisplay::eD_Wessi);
       else if (String("RR") == param)
@@ -549,13 +651,47 @@ void WebServer::AddColorPicker(String &msg, String Id)
   msg += "</td><td></td></tr>";
 }*/
 
-void WebServer::AddSliderControl(String &msg, String htmlColor, String label, String rangeName, String rangeId, int16_t minValue, int16_t maxValue, int16_t curColor, String inputName, String inputId)
+
+// this will add 4 rows to the table
+void WebServer::AddColorControls(String &msg, CRGB color, String id_postfix, bool hide)
 {
-    msg += "<tr><td><span style=\"color:";
+
+    // red slider
+    AddSliderControl(msg, "#FF0000", "Red", "arRED" + id_postfix, "arR" + id_postfix, 0, 255, color.r, "aiRED" + id_postfix, "aiR" + id_postfix, hide);
+
+    // green slider
+    AddSliderControl(msg, "#00FF00", "Green", "arGREEN" + id_postfix, "arG" + id_postfix, 0, 255, color.g, "aiGREEN" + id_postfix, "aiG" + id_postfix, hide);
+
+    // blue slider
+    AddSliderControl(msg, "#0000FF", "Blue", "arBLUE" + id_postfix, "arB" + id_postfix, 0, 255, color.b, "aiBLUEN" + id_postfix, "aiBN" + id_postfix, hide);
+
+    //sResponse +=  F("<!-- emtpy row--><tr style=\"border-bottom:1pt solid " TABLE_BORDER_COLOR ";\"><td><br></td><td><br></td><td><br></td></tr>");
+
+    // ----------- color picker, is aways hidden in the beginning
+    msg += F("<tr style=\"display: none\"><td></td><td><input type=\"color\" id=\"cP");
+    msg += id_postfix;
+    msg += F("\" name=\"colorPicker");
+    msg += id_postfix;
+    msg += F("\" value=\"");
+
+    String c = RGBToHexString(color);
+    serialTrace.Log(T_DEBUG, "WebServer - Current RGB in Hex = %s", c.c_str());
+    msg += c;
+
+    msg += F("\"></td><td></td></tr>");
+    // ----------- end color picker
+}
+
+
+void WebServer::AddSliderControl(String &msg, String htmlColor, String label, String rangeName, String rangeId, int16_t minValue, int16_t maxValue, int16_t curColor, String inputName, String inputId, bool hide)
+{
+    msg += F("<tr");
+    if (hide) msg += F(" style=\"display: none\"");
+    msg += F("><td><span style=\"color:");
     msg += htmlColor;
     msg += "\">";
     msg += label;
-    msg += "</span></td><td><input type=\"range\" name=\"";
+    msg += F("</span></td><td><input type=\"range\" name=\"");
     msg += rangeName;
     msg += "\" id=\"";
     msg += rangeId;
@@ -567,8 +703,8 @@ void WebServer::AddSliderControl(String &msg, String htmlColor, String label, St
     msg +=  curColor;
     msg += "\" onchange=\"this.form.";
     msg += inputName;
-    msg += ".value=this.value\">"
-           "</td><td><input type=\"number\" id=\"";
+    msg += F(".value=this.value\">"
+           "</td><td><input type=\"number\" id=\"");
     msg += inputId;
     msg += "\" name=\"";
     msg += inputName;
@@ -628,9 +764,17 @@ void WebServer::AddNumberField(String &msg, String label, String fieldName, Stri
     if(bTable) msg += "</td><td></td></tr>";
 }
 
-void WebServer::AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable, bool bEdit)
+void WebServer::AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable, bool bEdit, bool bHide)
 {
-    if(bTable) msg += "<tr><td>";
+    if (bTable)
+    {
+        msg += "<tr";
+        if (bHide)
+            msg += " style = \"display: none;\"";
+        
+        msg += "><td>";
+    }
+
     msg += "<span>";
     msg += label;
     msg += "</span>";
@@ -745,6 +889,17 @@ bool WebServer::UseSlider(String& sCmd, const char* paramLabel)
   return false;
 }
 
+// IsDayColor
+bool WebServer::IsDayColor(String& sCmd, const char* paramLabel)
+{
+    String param = ReadValueAsString(sCmd, paramLabel);
+    if (String("Day") == param)
+        return true;
+
+    return false;
+}
+
+
 void WebServer::ReadTextField(String& sCmd, const char* paramLabel, wsRequest& request, SetStringFn fn)
 {
    String param = ReadValueAsString(sCmd, paramLabel);
@@ -780,11 +935,20 @@ void WebServer::ReadColorPicker(String& sCmd, const char* paramLabel, wsRequest&
   {
     serialTrace.Log(T_DEBUG, "WebServer - Hex Color = %s", param.c_str());
     serialTrace.Log(T_DEBUG, "WebServer - Red Hex Color = %s", param.substring(3, 5).c_str());
-    request.SetColorRed(HexColorValueToInt(param.substring(3, 5).c_str()));
+    if (request.m_bDayColor)
+        request.SetColorRed(HexColorValueToInt(param.substring(3, 5).c_str()));
+    else
+        request.SetColorRedN(HexColorValueToInt(param.substring(3, 5).c_str()));
     serialTrace.Log(T_DEBUG, "WebServer - Green Hex Color = %s", param.substring(5, 7).c_str());
-    request.SetColorGreen(HexColorValueToInt(param.substring(5, 7).c_str()));
+    if(request.m_bDayColor)
+        request.SetColorGreen(HexColorValueToInt(param.substring(5, 7).c_str()));
+    else
+        request.SetColorGreenN(HexColorValueToInt(param.substring(5, 7).c_str()));
     serialTrace.Log(T_DEBUG, "WebServer - Blue Hex Color = %s",  param.substring(7, 9).c_str());
-    request.SetColorBlue(HexColorValueToInt( param.substring(7, 9).c_str()));
+    if (request.m_bDayColor)
+        request.SetColorBlue(HexColorValueToInt( param.substring(7, 9).c_str()));
+    else
+        request.SetColorBlueN(HexColorValueToInt(param.substring(7, 9).c_str()));
     serialTrace.Log(T_DEBUG, "WebServer - RGB Color = %d %d %d", request.GetColor().r, request.GetColor().g, request.GetColor().b);
   }     
 }

@@ -27,15 +27,17 @@ public:
   {
     public:
     
-    wsRequest(CRGB color, uint8_t brightnessNight, uint8_t brightnessDay, uint8_t brightness, String ntp, uint16_t nightStart, uint16_t nightEnd, CClockDisplay::eDialect dia)
+    wsRequest(CRGB color, CRGB nColor, uint8_t brightnessNight, uint8_t brightnessDay, uint8_t brightness, String ntp, uint16_t nightStart, uint16_t nightEnd, CClockDisplay::eDialect dia, uint16_t tvStart, uint16_t tvEnd)
     {
       m_color = color;
+      m_nColor = nColor;
       m_brightnessNight = brightnessNight;
       m_brightnessDay = brightnessDay;
       m_brightness = brightness;
       m_bEnableConfigMode = false;
       m_mode = clockMode;
       m_bColorChanged = false;
+      m_bNColorChanged = false;
       m_bBrightnessChanged = false;
       m_ntp = ntp;
       m_bNtpChanged = false;
@@ -47,15 +49,20 @@ public:
       m_bInverseDisplay = false;
       m_bSetSunRise = false;
       m_mode = clockMode;
+      m_bDayColor = true;
+      m_tvStart = tvStart;
+      m_tvEnd = tvEnd;
+      m_bTvChanged = false;
     }
 
     virtual ~wsRequest() {}
 
-    bool HasColorChanged () { return m_bColorChanged; }
+    bool HasColorChanged(bool bDay) { if (bDay) return m_bColorChanged; else return m_bNColorChanged; }
     bool HasBrightnessChanged () { return m_bBrightnessChanged; }   
     bool HasNtpChanged () { return m_bNtpChanged; }
     bool HasNightChanged () { return m_bNightChanged; }
     bool HasDialectChanged () { return m_bDialectChanged; }
+    bool HasTvChanged() { return m_bTvChanged; }
     
     void SetDialect(CClockDisplay::eDialect dia) 
     { 
@@ -66,43 +73,85 @@ public:
     }
     CClockDisplay::eDialect GetDialect() { return m_dia; }
      
-    void SetColor(CRGB color) 
+    void SetColor(CRGB color, bool bDay) 
     { 
-      if(m_color.r != color.r)
-        m_bColorChanged = true;
+        if (bDay)
+        {
+            if (m_color.r != color.r)
+                m_bColorChanged = true;
 
-      if(m_color.g != color.g)
-        m_bColorChanged = true;
+            if (m_color.g != color.g)
+                m_bColorChanged = true;
 
-      if(m_color.b != color.b)
-        m_bColorChanged = true;
-      
-      m_color = color; 
+            if (m_color.b != color.b)
+                m_bColorChanged = true;
+
+            m_color = color;
+        }
+        else
+        {
+            if (m_nColor.r != color.r)
+                m_bNColorChanged = true;
+
+            if (m_nColor.g != color.g)
+                m_bNColorChanged = true;
+
+            if (m_nColor.b != color.b)
+                m_bNColorChanged = true;
+
+            m_nColor = color;
+        }
     }
+    
     CRGB GetColor() { return m_color; }
+    CRGB GetColorN() { return m_nColor; }
     
-    void SetColorRed(uint8_t r) 
-    { 
-      if(m_color.r != r)
-        m_bColorChanged = true;
-    
-      m_color.r = r;
+    void SetColorRed(uint8_t r)
+    {
+        if (m_color.r != r)
+            m_bColorChanged = true;
+
+        m_color.r = r;
     }
 
-    void SetColorGreen(uint8_t g) 
-    { 
-      if(m_color.g != g)
-        m_bColorChanged = true;
-    
-      m_color.g = g;
+    void SetColorRedN(uint8_t r)
+    {
+        if (m_nColor.r != r)
+            m_bNColorChanged = true;
+
+        m_nColor.r = r;
     }
 
-    void SetColorBlue(uint8_t b) 
+    void SetColorGreen(uint8_t g)
+    {
+        if (m_color.g != g)
+            m_bColorChanged = true;
+
+        m_color.g = g;
+    }
+
+    void SetColorGreenN(uint8_t g)
+    {
+        if (m_nColor.g != g)
+            m_bNColorChanged = true;
+
+        m_nColor.g = g;
+    }
+
+    void SetColorBlue(uint8_t b)
     { 
-      if(m_color.b != b)
-        m_bColorChanged = true;
+        if (m_color.b != b)
+            m_bColorChanged = true;
+
+        m_color.b = b;
+    }
     
-      m_color.b = b;
+    void SetColorBlueN(uint8_t b)
+    {
+        if (m_nColor.b != b)
+            m_bNColorChanged = true;
+
+        m_nColor.b = b;
     }
 
     void SetBrightness(uint8_t b) 
@@ -164,13 +213,34 @@ public:
     bool m_bEnableConfigMode;
     bool m_bInverseDisplay;
     bool m_bSetSunRise;
+    bool m_bDayColor;
+
+    void SetTvStart(uint16_t b)
+    {
+        if (m_tvStart != b)
+            m_bTvChanged = true;
+
+        m_tvStart = b;
+    }
+    uint16_t GetTvStart() { return m_tvStart; }
+
+    void SetTvEnd(uint16_t b)
+    {
+        if (m_tvEnd != b)
+            m_bTvChanged = true;
+
+        m_tvEnd = b;
+    }
+    uint16_t GetTvEnd() { return m_tvEnd; }
 
   private:
 
     bool m_bColorChanged;
+    bool m_bNColorChanged;
     bool m_bBrightnessChanged;
     
     CRGB m_color;
+    CRGB m_nColor;
     uint8_t m_brightnessNight;
     uint8_t m_brightnessDay;
     uint8_t m_brightness;  
@@ -182,6 +252,10 @@ public:
 
     CClockDisplay::eDialect m_dia;
     bool m_bDialectChanged;
+
+    uint16_t m_tvStart;
+    uint16_t m_tvEnd;
+    bool m_bTvChanged;
 
     
   };
@@ -198,16 +272,17 @@ private:
   int8_t HexColorValueToInt(String hc);
   /*void AddColorPickerScript(String &msg, String htmlColor, String Id);
   void AddColorPicker(String &msg, String Id);*/
-  void AddSliderControl(String &msg, String htmlColor, String label, String rangeName, String rangeId, int16_t minValue, int16_t maxValue, int16_t curColor, String inputName, String inputId);
+  void AddSliderControl(String &msg, String htmlColor, String label, String rangeName, String rangeId, int16_t minValue, int16_t maxValue, int16_t curColor, String inputName, String inputId, bool hide);
   void AddTextField(String &msg, String htmlColor, String label, String fieldName, String fieldId, String fieldValue, bool bTable = true);
   void AddNumberField(String &msg, String label, String fieldName, String fieldId, float fieldValue, bool bTable = true, bool bEdit = true);
-  void AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable = true, bool bEdit = true);
+  void AddTwoNumberFields(String &msg, String label, String fieldName1, String fieldId1, int8_t fieldValue1, String fieldName2, String fieldId2, int8_t fieldValue2, bool bTable = true, bool bEdit = true, bool bHide = false);
   void AddButton(String &msg, String label, String fieldName, String buttonValue);
   void AddCheckBox(String &msg, String label, String fieldName, String fieldId, String value, String currentValue, String currentValueColor);
   void AddRadioButton(String &msg, String label, String fieldName, String fieldId, String value, bool bChecked);
   void ReadSliderValue(String& sCmd, const char* paramLabel, wsRequest& request, SetIntFn fn);
   // ColorChoice=Slider ( or Picker)
   bool UseSlider(String& sCmd, const char* paramLabel);
+  bool IsDayColor(String& sCmd, const char* paramLabel);
   void ReadTextField(String& sCmd, const char* paramLabel, wsRequest& request, SetStringFn fn);
   void ReadNumberField(String& sCmd, const char* paramLabel, wsRequest& request, SetIntFn fn);
   void ReadNumberField(String& sCmd, const char* paramLabel, int8_t& n);
@@ -215,6 +290,7 @@ private:
   void ReadColorPicker(String& sCmd, const char* paramLabel, wsRequest& request);
   String ReadValueAsString(String& sCmd, const char* paramLabel);
   void SkipValue(String& sCmd);
+  void AddColorControls(String &msg, CRGB color, String id_postfix, bool hide);
   
   unsigned long ulReqcount;
   unsigned long ulReconncount;
@@ -310,6 +386,19 @@ private:
                                 "  background-color:  #d7d7d7; /* Gray */"
                                 "}"
                                 ".button {"
+                                "  border: none;"
+                                "  padding: 14px 40px;"
+                                "  border-radius: 12px;"
+                                "  width: 100%;"
+                                "  background-color: #e7e7e7; color: black;"
+                                "}"
+                                "input[type = button]:hover {"
+                                "  -webkit-transition-duration: 0.4s; /* Safari */"
+                                "  transition-duration: 0.4s;"
+                                "  box-shadow: 0 12px 16px 0 rgba(0,0,0,0.24), 0 17px 50px 0 rgba(0,0,0,0.19);"
+                                "  background-color:  #d7d7d7; /* Gray */"
+                                "}"
+                                "input[type = button] {"
                                 "  border: none;"
                                 "  padding: 14px 40px;"
                                 "  border-radius: 12px;"

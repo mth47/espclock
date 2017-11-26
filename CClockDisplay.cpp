@@ -74,9 +74,9 @@ const int MIN4[]    = { 121, 120, 110, 119, -1 };
 const int DST[]     = { 109, -1};
 
 const char* STR_ES_IST_  = "Es ist ";
-const char* STR_FUENFH_  = "Fünf ";
+const char* STR_FUENFH_  = "F&uuml;nf ";
 const char* STR_ZEHNH_   = "Zehn ";
-const char* STR_FUENF_   = "fünf ";
+const char* STR_FUENF_   = "f&uuml;nf ";
 const char* STR_ZEHN_    = "zehn ";
 const char* STR_ZWANZIG_ = "zwanzig ";
 const char* STR_DREIVIERTEL_ = "dreiviertel ";
@@ -96,7 +96,7 @@ const char* STR_VIER_    = "vier ";
 const char* STR_SECHS_   = "Sechs ";
 const char* STR_ACHT_    = "Acht ";
 const char* STR_SIEBEN_  = "Sieben ";
-const char* STR_ZWOELF_  = "Zwölf ";
+const char* STR_ZWOELF_  = "Zw&ouml;lf ";
 const char* STR_UHR_     = "Uhr ";
 const char* STR_NEUN_    = "Neun ";
 const char* STR_UND_     = "und ";
@@ -108,8 +108,8 @@ const char* STR_EINE_MINUTE  = "eine Minute";
 CClockDisplay::ClockString::ClockString(int numLEDs) : m_cs(0), m_csLen(0)
 {
     // every leds represents one charachter, so this is the maximum clockString size as well
-	// additional we add the number of minutes not part of the main display
-	m_csLen = strlen("plus x Minuten") + numLEDs + 1;
+	// additional we add the number of minutes not part of the main display, 8 spaces and special characters
+	m_csLen = strlen("und xxxx Minuten&uuml;&ouml;") + numLEDs + 10;
 	m_cs = new char[m_csLen];
 	if(m_cs)
 	{
@@ -185,9 +185,8 @@ const char* CClockDisplay::GetHourString(int h, int m)
 }
 
 // class CClockDisplay
-CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_bgColor(CRGB::Black), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_bDialect(eD_Ossi), m_clockString(0), m_bInverse(false), m_bDualColor(false)
+CClockDisplay::CClockDisplay() : m_pLEDs(0), m_numLEDs(0), m_color(CRGB::Red), m_bgColor(CRGB::Black), m_currentMinute(-1), m_pTZ(0), m_bSmallClock(false), m_Dialect(eD_Ossi), m_clockString(0), m_bInverse(false), m_bDualColor(false)
 {
-	m_clockString = new ClockString(m_numLEDs);	
 }
 
 CClockDisplay::~CClockDisplay()
@@ -201,6 +200,14 @@ bool CClockDisplay::setup(CRGB* leds, int numLEDs)
   m_pLEDs = leds;
   m_numLEDs = numLEDs;
 
+  if (m_clockString)
+  {
+      delete m_clockString;
+      m_clockString = 0;
+  }
+
+  m_clockString = new ClockString(m_numLEDs);
+
   serialTrace.Log(T_DEBUG, "CClockDisplay::setup - initialized for BIG CLOCK");
   serialTrace.Log(T_DEBUG, "CClockDisplay::setup - Number of LEDs = %d", m_numLEDs);
 
@@ -211,6 +218,14 @@ bool CClockDisplay::setup_small(CRGB* leds, int numLEDs)
 {
   m_pLEDs = leds;
   m_numLEDs = numLEDs;
+
+  if (m_clockString)
+  {
+      delete m_clockString;
+      m_clockString = 0;
+  }
+
+  m_clockString = new ClockString(m_numLEDs);
 
   serialTrace.Log(T_DEBUG, "CClockDisplay::setup - initialized for SMALL CLOCK");
   serialTrace.Log(T_DEBUG, "CClockDisplay::setup - Number of LEDs = %d", m_numLEDs);
@@ -256,30 +271,33 @@ bool CClockDisplay::GetDualColor()
 
 bool CClockDisplay::update(bool force)
 {
-    if (m_currentMinute != minute() || true == force)
+    if (m_pLEDs) // ignore update requests, if setup has not been executed
     {
-        time_t utc(now());
+        if (m_currentMinute != minute() || true == force)
+        {
+            time_t utc(now());
 
-        if(m_bInverse)
-            fill_solid(&(m_pLEDs[0]), m_numLEDs, m_color);
-        else
-            fill_solid(&(m_pLEDs[0]), m_numLEDs, m_bgColor);
+            if (m_bInverse)
+                fill_solid(&(m_pLEDs[0]), m_numLEDs, m_color);
+            else
+                fill_solid(&(m_pLEDs[0]), m_numLEDs, m_bgColor);
 
-        compose(ES, m_bInverse);
-        compose(IST, m_bInverse);
+            compose(ES, m_bInverse);
+            compose(IST, m_bInverse);
 
-        //  if(CE.utcIsDST(utc))
-        //  {
-        //    compose(DST);
-        //  }
+            //  if(CE.utcIsDST(utc))
+            //  {
+            //    compose(DST);
+            //  }
 
-        time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
-        display_time(hour(local), minute(local), m_bInverse);
+            time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
+            display_time(hour(local), minute(local), m_bInverse);
 
-        m_currentMinute = minute();
+            m_currentMinute = minute();
 
-        Serial.println();
-        return true;
+            Serial.println();
+            return true;
+        }
     }
 
     return false;
@@ -292,7 +310,12 @@ CRGB CClockDisplay::getColor()
 
 void CClockDisplay::setColor(const CRGB& color)
 {
-  m_color = color;
+    m_color = color;
+}
+
+CRGB CClockDisplay::getBgColor()
+{
+    return (m_bgColor);
 }
 
 void CClockDisplay::setBgColor(const CRGB& bgColor)
@@ -307,27 +330,27 @@ void CClockDisplay::setTimezone(Timezone* pTZ)
 
 void CClockDisplay::SetDialect(eDialect dia)
 {
-  m_bDialect = dia;
+  m_Dialect = dia;
 }
 
 CClockDisplay::eDialect CClockDisplay::GetDialect()
 {
-  return m_bDialect;
+  return m_Dialect;
 }
 
 bool CClockDisplay::IsWessiDialect ()
 {
-  return (eD_Wessi == m_bDialect) ? true : false;
+  return (eD_Wessi == m_Dialect) ? true : false;
 }
 
 bool CClockDisplay::IsOssiDialect ()
 {
-  return (eD_Ossi == m_bDialect) ? true : false;
+  return (eD_Ossi == m_Dialect) ? true : false;
 }
 
 bool CClockDisplay::IsRheinRuhrDialect ()
 {
-  return (eD_RheinRuhr == m_bDialect) ? true : false;
+  return (eD_RheinRuhr == m_Dialect) ? true : false;
 }
 
 /**

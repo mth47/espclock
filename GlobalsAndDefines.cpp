@@ -20,6 +20,8 @@ CRGB leds_target[NUM_LEDS];
 CClockDisplay clock;
 
 CRGB color_WarmWhile(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
+CRGB nightColor(DEFAULT_RED, 0, 0);
+CRGB dayColor(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
 
 /*
    ------------------------------------------------------------------------------
@@ -32,7 +34,17 @@ uint8_t brightnessDay   = 50;
 uint8_t brightness = brightnessDay;
 uint16_t nightStart = DEFAULT_NIGHT_START;
 uint16_t nightEnd = DEFAULT_NIGHT_END;
-CClockDisplay::eDialect clockDialect = CClockDisplay::eD_Ossi;
+
+uint16_t tvStart = DEFAULT_TV_START;
+uint16_t tvEnd = DEFAULT_TV_END;
+
+#define TV_RAND_TIME (uint16_t) 4 * 60 // 4 am
+//#define TV_RAND_TIME (uint16_t) 13*60+18
+#define MAX_TV_START_VARIATION (uint16_t) 12
+#define MAX_TV_END_VARIATION (uint16_t) 19 
+#define MIDNIGHT (uint16_t) 24 * 60
+short tvVari1 = 0;
+short tvVari2 = 0;
 
 bool bSunRise = false;
 bool bRunSunRise = false;
@@ -77,54 +89,114 @@ bool IsValidDayMin(uint16_t m)
   return false;
 }
 
+bool IsWithInTime(time_t local, uint16_t tStart, uint16_t tEnd, bool& bIsWithin, const char* functionLabel)
+{
+    if (tStart == tEnd)
+    {
+        if (bIsWithin)
+            serialTrace.Log(T_DEBUG, "%s: Start == End '%d', return false", functionLabel, tEnd);
+
+
+        return (bIsWithin = false);
+    }
+
+    int16_t currMin = GetMinOfTime(local);
+
+    if (tEnd > tStart)
+    {
+        // the night starts after midnight and and ends in the morning
+        if (currMin >= tStart && currMin < tEnd)
+        {
+            if (!bIsWithin)
+                serialTrace.Log(T_DEBUG, "%s: currMin >= Start '%d' && currMin < End '%d', return true", functionLabel, tStart, tEnd);
+
+            return (bIsWithin = true);
+        }
+
+        if (bIsWithin)
+            serialTrace.Log(T_DEBUG, "%s: End > Start '%d', End '%d', return false", functionLabel, tStart, tEnd);
+
+        return (bIsWithin = false);
+    }
+    else
+    {
+        // the night starts before midnight and and ends in the morning
+        if (currMin >= tStart || currMin < tEnd)
+        {
+            if (!bIsWithin)
+                serialTrace.Log(T_DEBUG, "%s: currMin >= Start '%d' ||  currMin < End '%d', return true", functionLabel, tStart, tEnd);
+
+            return (bIsWithin = true);
+        }
+    }
+
+    if (bIsWithin)
+        serialTrace.Log(T_DEBUG, "%s: Start > End '%d', End '%d', return false", functionLabel, tStart, tEnd);
+
+    return (bIsWithin = false);
+}
+
 bool IsNight(time_t local)
 {
-  static bool bNight=false;
- 
-  if(nightStart == nightEnd)
-  { 
-    if(bNight) 
-      serialTrace.Log(T_DEBUG, "IsNight: nightStart == nightEnd '%d', return false", nightEnd); 
- 
- 
-    return (bNight = false);
-  } 
- 
-  int16_t currMin = GetMinOfTime(local);
+  static bool bNight = false;
 
-  if (nightEnd > nightStart)
-  {
-      // the night starts after midnight and and ends in the morning
-      if (currMin >= nightStart && currMin < nightEnd)
-      {
-          if (!bNight)
-              serialTrace.Log(T_DEBUG, "IsNight: currMin >= nightStart '%d' && currMin < nightEnd '%d', return true", nightStart, nightEnd);
-
-          return (bNight = true);
-      }
-
-      if (bNight)
-          serialTrace.Log(T_DEBUG, "IsNight: nightEnd > nightStart '%d', nightEnd '%d', return false", nightStart, nightEnd);
-
-      return (bNight = false);
-  }
-  else
-  {
-      // the night starts before midnight and and ends in the morning
-      if (currMin >= nightStart || currMin < nightEnd)
-      {
-          if (!bNight)
-              serialTrace.Log(T_DEBUG, "IsNight: currMin >= nightStart '%d' ||  currMin < nightEnd '%d', return true", nightStart, nightEnd);
-
-          return (bNight = true);
-      }
-  }
- 
-  if(bNight) 
-    serialTrace.Log(T_DEBUG, "IsNight: nightStart > nightEnd '%d', nightEnd '%d', return false", nightStart, nightEnd); 
- 
-  return (bNight = false);
+  return IsWithInTime(local, nightStart, nightEnd, bNight, "IsNight");
 } 
+
+bool IsTvSimTime(time_t local)
+{
+    static bool bTvSim = false;
+    static bool tv_rand_done = false; // prevents to calc the random minutes several time within one minute
+
+    if (tvStart == tvEnd)
+    {
+        // tvSim is not enabled.
+        return false;
+    }
+
+    // ok, now lets calc some random number of minutes and put them on top
+    // we do this every night at 1am
+    if(!tv_rand_done && TV_RAND_TIME == GetMinOfTime(local))
+    { 
+        uint16_t maxVari = 0;
+        if(tvEnd - tvStart > 0)
+            maxVari = tvEnd - tvStart;
+        else
+            maxVari = MIDNIGHT - tvStart + tvEnd;
+        
+        tv_rand_done = true;
+
+        if (maxVari >= 2)
+        {
+            tvVari1 = random(1, (maxVari < MAX_TV_START_VARIATION + MAX_TV_END_VARIATION) ? maxVari / 2 : MAX_TV_START_VARIATION);
+            // plus or minus?
+            if (1 == random(1, 3))
+                tvVari1 *= -1;
+
+            tvVari2 = random(1, (maxVari < MAX_TV_START_VARIATION + MAX_TV_END_VARIATION) ? maxVari / 2 : MAX_TV_END_VARIATION);
+            // plus or minus?
+            if (1 == random(1, 3))
+                tvVari2 *= -1;
+
+            serialTrace.Log(T_DEBUG, "IsTvSimTime -  Calculated start variation '%d', Calculated end variation '%d'. Set daily variation time calculation flag.", tvVari1, tvVari2);
+        }
+        else
+        {
+            tvVari1 = 0;
+            tvVari2 = 0;
+        }
+    }
+
+    // reset the 
+    if (tv_rand_done && TV_RAND_TIME + 5 == GetMinOfTime(local))
+    {
+        tv_rand_done = false;
+        serialTrace.Log(T_DEBUG, "IsTvSimTime -  Reset daily variation time calculation flag.");
+    }
+    
+    return IsWithInTime(local, tvStart + tvVari1, tvEnd + tvVari2, bTvSim, "IsTvSimTime");
+    
+}
 
 bool IsStillSunriseTime(time_t local)
 {

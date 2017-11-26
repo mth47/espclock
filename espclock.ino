@@ -76,6 +76,7 @@ const int OPC_BUFFER_SIZE = OPC_MAX_PIXELS * 3 + OPC_HEADER_BYTES;
 */
 uint32_t HandleSunRise();
 void StopSunRise(bool bShowChange = true);
+void toggleMode(ClockMode mode);
 /*
 * ------------------------------------------------------------------------------
 * End Declerations
@@ -85,7 +86,7 @@ void StopSunRise(bool bShowChange = true);
 //------------------------------------------------------------------------------
 // permanent storage
 
-void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
+void ReadTheConfig(CClockDisplay::eDialect& dia)
 {
   if (SPIFFS.exists("/config.json")) 
   {
@@ -100,6 +101,9 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
       std::unique_ptr<char[]> buf(new char[size]);
 
       configFile.readBytes(buf.get(), size);
+
+      configFile.close();
+
       DynamicJsonBuffer jsonBuffer;
       JsonObject& json = jsonBuffer.parseObject(buf.get());
       json.printTo(Serial);
@@ -112,15 +116,15 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
         if(0 != json["blynk_token"].as<const char*>())
           strcpy(blynk_token, json["blynk_token"]);
 
-        ledcolor.r = json["red"];
-        if(ledcolor.r > 255 || ledcolor.r < 0)
-          ledcolor.r = DEFAULT_RED;
-        ledcolor.g= json["green"];
-        if(ledcolor.g > 255 || ledcolor.g < 0)
-          ledcolor.g = DEFAULT_GREEN;
-        ledcolor.b = json["blue"];
-        if(ledcolor.b > 255 || ledcolor.b < 0)
-          ledcolor.b = DEFAULT_BLUE;
+        dayColor.r = json["red"];
+        if(dayColor.r > 255 || dayColor.r < 0)
+            dayColor.r = DEFAULT_RED;
+        dayColor.g= json["green"];
+        if(dayColor.g > 255 || dayColor.g < 0)
+            dayColor.g = DEFAULT_GREEN;
+        dayColor.b = json["blue"];
+        if(dayColor.b > 255 || dayColor.b < 0)
+            dayColor.b = DEFAULT_BLUE;
         brightnessNight = (uint8_t) json["brightnessNight"];
         if(brightnessNight > 1024 || brightnessNight < 0) // it should be possible to switch off the display in the night hours
           brightnessNight = (uint8_t) 5;
@@ -134,8 +138,8 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
         (1 == tmp) ? IsConfigMode = true : IsConfigMode = false;
 
         // make sure a visible color is chosen
-        if(0 == ledcolor.r && 0 == ledcolor.g && 0 == ledcolor.b)
-          ledcolor.r = 255;
+        if(0 == dayColor.r && 0 == dayColor.g && 0 == dayColor.b)
+            dayColor.r = 255;
 
         tmp = json["Dialect"];
         dia = (CClockDisplay::eDialect) tmp;
@@ -156,6 +160,28 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
         tmp = json["bSunRise"];
         (1 == tmp) ? bSunRise = true : bSunRise = false;
 
+        tvStart = (uint16_t)json["tvStart"];
+        if (!IsValidDayMin(tvStart))
+            tvStart = DEFAULT_TV_START;
+
+        tvEnd = (uint16_t)json["tvEnd"];
+        if (!IsValidDayMin(tvEnd))
+            tvEnd = DEFAULT_TV_END;
+
+        nightColor.r = json["nred"];
+        if (nightColor.r > 255 || nightColor.r < 0)
+            nightColor.r = DEFAULT_RED;
+        nightColor.g = json["ngreen"];
+        if (nightColor.g > 255 || nightColor.g < 0)
+            nightColor.g = DEFAULT_GREEN;
+        nightColor.b = json["nblue"];
+        if (nightColor.b > 255 || nightColor.b < 0)
+            nightColor.b = DEFAULT_BLUE;
+        
+        // make sure a visible color is chosen
+        if (0 == nightColor.r && 0 == nightColor.g && 0 == nightColor.b)
+            nightColor.r = 255;
+
         serialTrace.Log(T_INFO, "parsed json");
           
       } 
@@ -167,7 +193,7 @@ void ReadTheConfig(CRGB &ledcolor, CClockDisplay::eDialect& dia)
   }
 }
 
-void SaveTheConfig(CRGB ledcolor)
+void SaveTheConfig()
 {
   serialTrace.Log(T_INFO, "saving config");
   DynamicJsonBuffer jsonBuffer;
@@ -176,14 +202,14 @@ void SaveTheConfig(CRGB ledcolor)
   json["ntp_server"] = ntp_server;
   json["blynk_token"] = blynk_token;
 
-  // looks like only int is supported or at least size of int is reqad even in case
+  // looks like only int is supported or at least size of int is read even in case
   // smaller numeric types are used????
   int tmp = -1;
   
   // save the current led settings as well
-  tmp = ledcolor.r; json["red"] = tmp;
-  tmp = ledcolor.g; json["green"] = tmp;
-  tmp = ledcolor.b; json["blue"] = tmp;
+  tmp = dayColor.r; json["red"] = tmp;
+  tmp = dayColor.g; json["green"] = tmp;
+  tmp = dayColor.b; json["blue"] = tmp;
   tmp = brightnessNight; json["brightnessNight"] = tmp;
   tmp = brightnessDay; json["brightnessDay"] = tmp;
   tmp = brightness; json["brightness"] = tmp;
@@ -193,7 +219,10 @@ void SaveTheConfig(CRGB ledcolor)
   else
     json["IsConfigMode"] = 0;
   
-  tmp = clock.GetDialect(); json["Dialect"] = tmp;
+  
+  tmp = clock.GetDialect(); 
+  serialTrace.Log(T_DEBUG, "Saving Dialect %d", tmp);
+  json["Dialect"] = tmp;
   tmp = nightStart; json["nightStart"] = tmp;
   tmp = nightEnd; json["nightEnd"] = tmp;
   
@@ -203,17 +232,27 @@ void SaveTheConfig(CRGB ledcolor)
       json["bSunRise"] = 1;
   else
       json["bSunRise"] = 0;
+  
+  tmp = tvStart; json["tvStart"] = tmp;
+  tmp = tvEnd; json["tvEnd"] = tmp;
+
+  tmp = nightColor.r; json["nred"] = tmp;
+  tmp = nightColor.g; json["ngreen"] = tmp;
+  tmp = nightColor.b; json["nblue"] = tmp;
 
   File configFile = SPIFFS.open("/config.json", "w");
   if (!configFile)
   {
     serialTrace.Log(T_ERROR, "failed to open config file for writing");
   }
+  else
+  {
+      serialTrace.Log(T_INFO, "SaveTheConfig - New settings:");
+      json.printTo(Serial);
+      json.printTo(configFile);
+      configFile.close();
+  }
 
-  serialTrace.Log(T_INFO, "SaveTheConfig - New settings:");
-  json.printTo(Serial);
-  json.printTo(configFile);
-  configFile.close();
   Serial.println("");
   
   //end save
@@ -242,77 +281,110 @@ void SetBrightness(uint8_t br)
         serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TEST);
         FastLED.setBrightness(BRIGHTNESS_TEST);
     }
-    else if (eCM_tv == clockMode)
+    else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
     {
         serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TVSIM);
         FastLED.setBrightness(BRIGHTNESS_TVSIM);
     }
 }
 
-void updateBrightness(bool force=false)
+void updateBrightnessAndColor(bool force=false)
 {
   static bool bDay=true;
   bool bConfigChanged = false; // we should not change write the config, if nothing changed
 
+  // serialTrace.Log(T_DEBUG, "updateBrightnessAndColor force = %s", (force) ? "true" : "false");
 
-  time_t local(CE.toLocal(now()));  
-  
-  if(IsNight(local))
+  time_t local(CE.toLocal(now()));
+
+  // check whether we have to start tv simulation
+  if (IsTvSimTime(local))
   {
-    bIsDay = false;
-    if(true == bDay || true == force)
-    {
-      Serial.println("Updating the brightness for the night.");
-      if(brightness != brightnessNight)
-        bConfigChanged = true;
-
-      brightness = brightnessNight;
-      
-#ifdef ENABLE_BLYNK
-      if (true == Blynk.connected())
-        Blynk.virtualWrite(V1, brightness);
-#endif
-      SetBrightness(brightness);
-      bDay = false;  
-    }
+      // serialTrace.Log(T_DEBUG, "TV Sim time");
+      if (eCM_tv_auto != clockMode)
+      {
+          toggleMode(eCM_tv_auto);
+      }   
   }
   else
   {
-      bIsDay = true;
-      if (false == bDay || true == force)
-      {
-          Serial.println("Updating the brightness for the day.");
+      // obviously we are no longer within the tv simuation time
+      // if not triggered manually by the user, we have to reset it 
+      // (we always go in clock mode, even if the test mode might have been used at the time we did go into tv sim mmode)
+      if (eCM_tv_auto == clockMode)
+          toggleMode(eCM_clock);
 
-          if (bSunRise && IsStillSunriseTime(local))
+      if (eCM_clock == clockMode)
+      {
+          if (IsNight(local))
           {
-              // we do like the wake up by light at workdays only
-              timeDayOfWeek_t d = (timeDayOfWeek_t) weekday();
-              if (dowMonday >= d <= dowFriday)
+              // serialTrace.Log(T_DEBUG, "NIGHT");
+              bIsDay = false;
+              if (true == bDay || true == force)
               {
-                  serialTrace.Log(T_INFO, "updateBrightness: start sunrise");
-                  holdTime = 0;
-                  // start dark
-                  SetBrightness(1);
-                  // tell the main loop to run the sunrise
-                  bRunSunRise = true;
+                  Serial.println("Updating the brightness and color for the night.");
+                  if (brightness != brightnessNight)
+                      bConfigChanged = true;
+
+                  brightness = brightnessNight;
+
+#ifdef ENABLE_BLYNK
+                  if (true == Blynk.connected())
+                      Blynk.virtualWrite(V1, brightness);
+#endif
+                  SetBrightness(brightness);
+
+                  clock.setColor(nightColor);
+                  clock.update(true);
+
+                  bDay = false;
               }
           }
           else
           {
-              if (brightness != brightnessDay)
-                  bConfigChanged = true;
+              // serialTrace.Log(T_DEBUG, "DAY");
+              bIsDay = true;
+              if (false == bDay || true == force)
+              {
+                  Serial.println("Updating the brightness and color for the day.");
 
-              brightness = brightnessDay;
+                  if (bSunRise && IsStillSunriseTime(local))
+                  {
+                      // we do like the wake up by light at workdays only
+                      timeDayOfWeek_t d = (timeDayOfWeek_t)weekday();
+                      if (dowMonday <= d && dowFriday >= d)
+                      {
+                          serialTrace.Log(T_INFO, "updateBrightness: start sunrise");
+                          holdTime = 0;
+                          // start dark
+                          SetBrightness(1);
+                          // tell the main loop to run the sunrise
+                          bRunSunRise = true;
+                      }
+                  }
+                  else
+                  {
+                      if (brightness != brightnessDay)
+                          bConfigChanged = true;
+
+                      brightness = brightnessDay;
 
 #ifdef ENABLE_BLYNK
-              if (true == Blynk.connected())
-                  Blynk.virtualWrite(V1, brightness);
+                      if (true == Blynk.connected())
+                          Blynk.virtualWrite(V1, brightness);
 #endif
-              SetBrightness(brightness);
-          }
+                      SetBrightness(brightness);
 
-          bDay = true;
+                      clock.setColor(dayColor);
+                      clock.update(true);
+                  }
+
+                  bDay = true;
+              }
+          }
       }
+      /*else
+          serialTrace.Log(T_DEBUG, "updateBrightness: No clock mode");*/
   }
 
   if (!bRunSunRise)
@@ -329,25 +401,20 @@ void updateBrightness(bool force=false)
           if (BRIGHTNESS_TEST != cBr)
               SetBrightness(BRIGHTNESS_TEST);
       }
-      else if (eCM_tv == clockMode)
+      else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
       {
           if (BRIGHTNESS_TVSIM != cBr)
               SetBrightness(BRIGHTNESS_TVSIM);
       }
   }
 
-   if (bConfigChanged)
-      SaveTheConfig(clock.getColor());
+  if (bConfigChanged)
+  {
+      SaveTheConfig();
+  }
 }
 
 
-void updateClock(CRGB ledcolor)
-{
-    clock.setColor(ledcolor);
-    clock.update(true);
-    // save the color back to our internal storage
-    SaveTheConfig(ledcolor);
-}
 
 /*
  * ------------------------------------------------------------------------------
@@ -410,7 +477,7 @@ BLYNK_WRITE(V0)
     ledcolor.g = param[1].asInt();
     ledcolor.b = param[2].asInt();
 
-    updateClock(ledcolor);
+    setClockColor(ledcolor);
   }
 }
 
@@ -601,7 +668,16 @@ void SetNewNtp(const char* ntp)
   strcpy(ntp_server, ntp);
   
   IPAddress timeServerIP;
-  WiFi.hostByName(ntp_server, timeServerIP);
+
+  for (uint8_t i = 0; i < 2; ++i)
+  {
+      // fritzbox ntp gets lost from time to time
+      WiFi.hostByName(ntp_server, timeServerIP);
+      if (timeServerIP != INADDR_NONE)
+          break;
+
+      delay(10);
+  }
   Serial.print("NTP Server: ");
   Serial.print(ntp_server);
   Serial.print(" - ");
@@ -611,7 +687,15 @@ void SetNewNtp(const char* ntp)
   {
     serialTrace.Log(T_WARNING, "Unknown NTP - using default");
     strcpy(ntp_server, DEFAULT_NTP);
-    WiFi.hostByName(ntp_server, timeServerIP);
+    for (uint8_t i = 0; i < 2; ++i)
+    {
+        // fritzbox ntp gets lost from time to time
+        WiFi.hostByName(ntp_server, timeServerIP);
+        if (timeServerIP != INADDR_NONE)
+            break;
+
+        delay(10);
+    }
     Serial.print("NTP Server: ");
     Serial.print(ntp_server);
     Serial.print(" - ");
@@ -657,7 +741,6 @@ OpcServer opcServer = OpcServer(server, OPC_CHANNEL, opcClients, OPC_MAX_CLIENTS
 #include "WebServer.h"
 WebServer wsrv;
 
-// test mode
 void toggleMode(ClockMode mode)
 {
   if (eCM_clock == mode && eCM_clock != clockMode)
@@ -688,11 +771,11 @@ void toggleMode(ClockMode mode)
     return;
   }
 
-  if (eCM_tv == mode && eCM_tv != clockMode)
+  if (eCM_tv == mode && eCM_tv != clockMode || eCM_tv_auto == mode && eCM_tv_auto != clockMode)
   {
       serialTrace.Log(T_INFO, "Enable TVsim Mode");
       StopSunRise();
-      clockMode = eCM_tv;
+      clockMode = mode;
       tv.run();
 
       return;
@@ -701,24 +784,39 @@ void toggleMode(ClockMode mode)
 
 void HandleWebSvrReq(WebServer::wsRequest request)
 {
-  if(!request.HasColorChanged() && !request.HasBrightnessChanged() && !request.HasNtpChanged() && 
+  if(!request.HasColorChanged(true) && !request.HasColorChanged(false) && !request.HasBrightnessChanged() && !request.HasNtpChanged() &&
       !request.m_bEnableConfigMode && clockMode == request.m_mode && !request.HasDialectChanged() && 
-      !request.HasNightChanged() && !request.m_bInverseDisplay && !request.m_bSetSunRise)
+      !request.HasNightChanged() && !request.m_bInverseDisplay && !request.m_bSetSunRise && !request.HasTvChanged())
     return;
 
   bool bSaveConfigChanges = false;
   
   serialTrace.Log(T_DEBUG, "HandleWebSvrReq - user input detected.");
 
-  if(request.HasColorChanged())
+  if(request.HasColorChanged(true) || request.HasColorChanged(false))
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock color change requested.");
-    updateClock(request.GetColor()); // does save the new config
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock color change requested. cDay = r%dg%db%d, cNight = r%dg%db%d", 
+        request.GetColor().r, request.GetColor().g, request.GetColor().b,
+        request.GetColorN().r, request.GetColorN().g, request.GetColorN().b);
+    dayColor = request.GetColor();
+    nightColor = request.GetColorN();
+    bSaveConfigChanges = true;
+    // clock update is only needed, if the color for the current time has been changed
+    if (IsNight(time_t (CE.toLocal(now()))) && request.HasColorChanged(false))
+    {
+        clock.setColor(nightColor);
+        clock.update(true);
+    }
+    else if (request.HasColorChanged(true))
+    {
+        clock.setColor(dayColor);
+        clock.update(true);
+    }
   }
 
   if(request.HasBrightnessChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock brightness change requested.");
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock brightness change requested. Br = %d, BrDay = %d, BrNight = %d", request.GetBrightness(), request.GetBrightnessDay(), request.GetBrightnessNight());
     brightness = request.GetBrightness();
     brightnessDay = request.GetBrightnessDay();
     brightnessNight = request.GetBrightnessNight();
@@ -729,7 +827,7 @@ void HandleWebSvrReq(WebServer::wsRequest request)
 
   if(request.HasNtpChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Ntp change requested.");
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Ntp change requested. New Ntp Server %s", request.GetNtp().c_str());
     SetNewNtp(request.GetNtp().c_str());
     bSaveConfigChanges = true;
   }
@@ -743,13 +841,13 @@ void HandleWebSvrReq(WebServer::wsRequest request)
   
   if(clockMode != request.m_mode)
   {
-    serialTrace.Log(T_INFO, "HandleWebSvrReq - Toggle Test Mode requested.");
+    serialTrace.Log(T_INFO, "HandleWebSvrReq - Toggle Test Mode requested. New Mode %d", request.m_mode);
     toggleMode(request.m_mode);
   }
 
   if(request.HasDialectChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Toggle Dailect requested.");
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Toggle Dailect requested. New Dialect %d", request.GetDialect());
     clock.SetDialect(request.GetDialect());
     clock.update(true);
     bSaveConfigChanges = true;
@@ -757,7 +855,7 @@ void HandleWebSvrReq(WebServer::wsRequest request)
 
   if(request.HasNightChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Night change requested.");
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Night change requested. NightStart = %d, NightEnd = %d", request.GetNightStart(), request.GetNightEnd());
     nightStart = request.GetNightStart();
     nightEnd = request.GetNightEnd();
     bSaveConfigChanges = true;
@@ -772,7 +870,7 @@ void HandleWebSvrReq(WebServer::wsRequest request)
     FastLED.show();
   }
 
-  if (request.m_bSetSunRise && eCM_clock == clockMode)
+  if (request.m_bSetSunRise)
   {
     serialTrace.Log(T_INFO, "Enable/Disable Sunrise Clock Mode");
     if (bSunRise)
@@ -783,8 +881,16 @@ void HandleWebSvrReq(WebServer::wsRequest request)
     bSaveConfigChanges = true;
   }
 
+  if (request.HasTvChanged())
+  {
+      serialTrace.Log(T_DEBUG, "HandleWebSvrReq - TVSim change requested. TvStart = %d, TvEnd = %d", request.GetTvStart(), request.GetTvEnd());
+      tvStart = request.GetTvStart();
+      tvEnd = request.GetTvEnd();
+      bSaveConfigChanges = true;
+  }
+
   if(bSaveConfigChanges)
-    SaveTheConfig(clock.getColor());
+    SaveTheConfig();
 }
 
 //------------------------------------------------------------------------------
@@ -814,9 +920,17 @@ uint32_t HandleSunRise()
     ++sr_progress;
     FastLED.setBrightness(sr_progress);
 
-    if (sr_progress < 10)
+    if (sr_progress < 2)
     {
-        return ONE_SUNRISE_STEP_IN_MS + 1000;
+        return ONE_SUNRISE_STEP_IN_MS + 10000;
+    }
+    else if (sr_progress < 5)
+    {
+        return ONE_SUNRISE_STEP_IN_MS + 5000;
+    }
+    else if (sr_progress < 10)
+    {
+        return ONE_SUNRISE_STEP_IN_MS + 2000;
     }
 
     if (sr_progress >= NUM_SUNRISE_STEPS)
@@ -842,7 +956,7 @@ void StopSunRise(bool bShowChange)
         clock.setBgColor(CRGB::Black);
         clock.SetDualColor();
         clock.update(true);
-        updateBrightness(true);
+        updateBrightnessAndColor(true);
         if (bShowChange)
         {
             ani.transform(leds, leds_target, NUM_LEDS, true);
@@ -865,13 +979,15 @@ void setup ()
   serialTrace.Log(T_INFO, "compiled for BIG CLOCK");
 #endif
   
+  randomSeed(analogRead(0));
+  
   //FastLED.setMaxPowerInVoltsAndMilliamps(5,1000); 
   FastLED.addLeds<APA102, DATA_PIN, CLOCK_PIN, BGR>(leds, NUM_LEDS);
   //FastLED.setCorrection(0xF0FFF7);
   //FastLED.setTemperature(Tungsten40W);
 
-  //FastLED.setBrightness(brightness);
-  updateBrightness(true);
+  // the default in case ading the paramter file does not work
+  FastLED.setBrightness(5);
 
   fill_solid( &(leds[0]), NUM_LEDS, CRGB::Black);
   FastLED.show();
@@ -886,12 +1002,17 @@ void setup ()
   ledcolor.g = DEFAULT_GREEN;
   ledcolor.b = DEFAULT_BLUE;
 
-  clockDialect = CClockDisplay::eD_Ossi;
+  CRGB nledcolor;
+  nledcolor.r = DEFAULT_RED;
+  nledcolor.g = DEFAULT_GREEN;
+  nledcolor.b = DEFAULT_BLUE;
+
+  CClockDisplay::eDialect clockDialect = CClockDisplay::eD_Ossi;
   
   if (SPIFFS.begin()) 
   {
     Serial.println("mounted file system");
-    ReadTheConfig(ledcolor, clockDialect);
+    ReadTheConfig(clockDialect);
   } 
   else 
   {
@@ -899,6 +1020,7 @@ void setup ()
   }
   //end read
 
+  // updateBrightnessAndColor(true);
 
   WiFiManager wifiManager;
   wifiManager.setAPCallback(cbConfigMode);
@@ -932,7 +1054,7 @@ void setup ()
   if(IsConfigMode)
   {
     IsConfigMode = false;
-    SaveTheConfig(ledcolor); // we need to reset the config flag
+    SaveTheConfig(); // we need to reset the config flag
 
     if (!wifiManager.startConfigPortal("ESPClockAP"))
     {
@@ -974,7 +1096,7 @@ void setup ()
   //save the custom parameters to FS
   if (shouldSaveConfig)
   {
-    SaveTheConfig(ledcolor);
+    SaveTheConfig();
   }
   
   Serial.print("IP number assigned by DHCP is ");
@@ -1001,13 +1123,10 @@ void setup ()
   setSyncProvider(getDateTimeFromRTC);
   
   serialTrace.Log(T_DEBUG, "RTC set up");
-
-  updateBrightness();
-  
+   
   clock.CLOCKSETUP(&(leds_target[0]), NUM_LEDS);
   clock.SetDialect(clockDialect);
   clock.setTimezone(&CE);
-  clock.setColor(ledcolor);
 
 #ifdef ENABLE_OPC
   opcServer.setMsgReceivedCallback(cbOpcMessage);
@@ -1052,6 +1171,8 @@ void setup ()
 
   ticker.detach();
 
+  updateBrightnessAndColor(true); // force reset of color and brightness as the color could not have been set before
+
   serialTrace.Log(T_DEBUG, "Setup finsihed.");
 }
 
@@ -1067,7 +1188,7 @@ void loop ()
   if (!bRunSunRise)
   {
       //serialTrace.Log(T_INFO, "loop: bRunSunRise = false");
-      updateBrightness();
+      updateBrightnessAndColor();
   }
 
   if(eCM_clock == clockMode)
@@ -1089,7 +1210,7 @@ void loop ()
   }
   else if (eCM_test == clockMode)
       FastLED.show();
-  else if (eCM_tv == clockMode)
+  else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
   {
       // the esp has a software and a hardware watchdog
       // while we can disable and reset the software watchdog
@@ -1126,7 +1247,7 @@ void loop ()
 #endif
 
 #ifdef ENABLE_LOCAL_WEBSERVER
-  WebServer::wsRequest req(clock.getColor(), brightnessNight, brightnessDay, brightness, ntp_server, nightStart, nightEnd, clockDialect);
+  WebServer::wsRequest req(dayColor, nightColor, brightnessNight, brightnessDay, brightness, ntp_server, nightStart, nightEnd, clock.GetDialect(), tvStart, tvEnd);
   wsrv.Run(req);
   HandleWebSvrReq(req);
 #endif

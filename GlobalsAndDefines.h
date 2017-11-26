@@ -16,9 +16,9 @@
 #define ENABLE_LOCAL_WEBSERVER
 
 // Enables Serial Tracing
-#define TRACE
+//#define TRACE
 // Enables Debug Traces, in VS this define is set by project settings in Arduino IDE not
-// #define _DEBUG
+//#define _DEBUG
 
 #include "Trace.h"
 extern Trace serialTrace;
@@ -66,6 +66,8 @@ extern CRGB leds_target[NUM_LEDS];
 #define DEFAULT_BLUE 36
 
 extern CRGB color_WarmWhile;
+extern CRGB nightColor;
+extern CRGB dayColor;
 
 extern CClockDisplay clock;
 
@@ -76,6 +78,10 @@ extern CClockDisplay clock;
  */
 #define DEFAULT_NIGHT_START (uint16_t) 22 * 60
 #define DEFAULT_NIGHT_END (uint16_t) 6 * 60
+
+#define DEFAULT_TV_START (uint16_t) 20 * 60 + 15
+#define DEFAULT_TV_END (uint16_t) 23 * 60 + 45
+
 
 #ifdef SMALLCLOCK
     #define BRIGHTNESS_TVSIM 100
@@ -89,14 +95,16 @@ extern uint8_t brightnessDay;
 extern uint8_t brightness;
 extern uint16_t nightStart;
 extern uint16_t nightEnd;
-extern CClockDisplay::eDialect clockDialect;
+
+extern uint16_t tvStart;
+extern uint16_t tvEnd;
 
 extern bool bSunRise;
 extern bool bRunSunRise;
 // ONE_SUNRISE_STEP_IN_MS * NUM_SUNRISE_STEPS == overal time from zero to max brightness
 // 5 min == 5 x 60 x 1000 milli seconds
 // brightness can be adjusted from 0 to 100 only
-#define ONE_SUNRISE_STEP_IN_MS 2000
+#define ONE_SUNRISE_STEP_IN_MS 1500
 #define NUM_SUNRISE_STEPS 100
 
 extern uint32_t holdTime;
@@ -111,6 +119,8 @@ bool IsValidHour(uint8_t h);
 bool IsValidDayMin(uint16_t m);
 // requires nightStart and nightEnd in minutes of the day
 bool IsNight(time_t local);
+// requires tvStart and tvEnd in minutes of the day
+bool IsTvSimTime(time_t local);
 bool IsStillSunriseTime(time_t local);
 
 /*
@@ -130,7 +140,8 @@ enum ClockMode
     eCM_clock = 0,
     eCM_test = 1,
     eCM_tv = 2,
-    eCM_opc = 3,
+    eCM_tv_auto = 3,
+    eCM_opc = 4,
 
 };
 

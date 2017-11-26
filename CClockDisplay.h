@@ -19,6 +19,7 @@ public:
 
   void setColor(const CRGB& color);
   void setTimezone(Timezone* pTZ);
+  CRGB getBgColor();
   void setBgColor(const CRGB& bgColor);
 
   void SetInverse();
@@ -59,7 +60,7 @@ private:
 
   int m_currentMinute;
 
-  eDialect m_bDialect;
+  eDialect m_Dialect;
   
   Timezone* m_pTZ;
   
