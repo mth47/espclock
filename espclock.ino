@@ -96,7 +96,7 @@ void ReadTheConfig(CClockDisplay::eDialect& dia)
     if (configFile) 
     {
       serialTrace.Log(T_INFO, "opened config file");
-      size_t size = configFile.size();
+      size_t size = configFile.size() + 1;
       // Allocate a buffer to store contents of the file.
       std::unique_ptr<char[]> buf(new char[size]);
 
@@ -269,29 +269,37 @@ Timezone CE(CEST, CET);
 
 CFadeAnimation ani;
 
-void SetBrightness(uint8_t br)
+bool SetBrightness(uint8_t br)
 {
     if (eCM_clock == clockMode || eCM_opc == clockMode)
     {
         serialTrace.Log(T_INFO, "SetBrightness - New value %d", br);
         FastLED.setBrightness(br);
+        return true;
     }
-    else if (eCM_test == clockMode)
+    
+    if (eCM_test == clockMode)
     {
         serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TEST);
         FastLED.setBrightness(BRIGHTNESS_TEST);
+        return true;
     }
-    else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
+    
+    if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
     {
         serialTrace.Log(T_INFO, "SetBrightness - New value %d", BRIGHTNESS_TVSIM);
         FastLED.setBrightness(BRIGHTNESS_TVSIM);
+        return true;
     }
+
+    return false;
 }
 
-void updateBrightnessAndColor(bool force=false)
+bool updateBrightnessAndColor(bool force=false)
 {
   static bool bDay=true;
   bool bConfigChanged = false; // we should not change write the config, if nothing changed
+  bool bLEDChanged = false;
 
   // serialTrace.Log(T_DEBUG, "updateBrightnessAndColor force = %s", (force) ? "true" : "false");
 
@@ -338,6 +346,8 @@ void updateBrightnessAndColor(bool force=false)
                   clock.update(true);
 
                   bDay = false;
+
+                  bLEDChanged = true;
               }
           }
           else
@@ -348,19 +358,18 @@ void updateBrightnessAndColor(bool force=false)
               {
                   Serial.println("Updating the brightness and color for the day.");
 
-                  if (bSunRise && IsStillSunriseTime(local))
+                  // we do like the wake up by light at workdays only
+                  timeDayOfWeek_t d = (timeDayOfWeek_t)weekday();
+
+                  if (bSunRise && IsStillSunriseTime(local) && (dowMonday <= d && dowFriday >= d) && !bRunSunRise)
                   {
-                      // we do like the wake up by light at workdays only
-                      timeDayOfWeek_t d = (timeDayOfWeek_t)weekday();
-                      if (dowMonday <= d && dowFriday >= d)
-                      {
-                          serialTrace.Log(T_INFO, "updateBrightness: start sunrise");
-                          holdTime = 0;
-                          // start dark
-                          SetBrightness(1);
-                          // tell the main loop to run the sunrise
-                          bRunSunRise = true;
-                      }
+                    serialTrace.Log(T_INFO, "updateBrightness: start sunrise");
+                    holdTime = 0;
+                    // start dark
+                    SetBrightness(1);
+                    // tell the main loop to run the sunrise
+                    bRunSunRise = true;
+
                   }
                   else
                   {
@@ -379,6 +388,8 @@ void updateBrightnessAndColor(bool force=false)
                       clock.update(true);
                   }
 
+                  bLEDChanged = true;
+
                   bDay = true;
               }
           }
@@ -394,17 +405,17 @@ void updateBrightnessAndColor(bool force=false)
       if (eCM_clock == clockMode || eCM_opc == clockMode)
       {
           if (brightness != cBr)
-              SetBrightness(brightness);
+              bLEDChanged |= SetBrightness(brightness);
       }
       else if (eCM_test == clockMode)
       {
           if (BRIGHTNESS_TEST != cBr)
-              SetBrightness(BRIGHTNESS_TEST);
+              bLEDChanged |= SetBrightness(BRIGHTNESS_TEST);
       }
       else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
       {
           if (BRIGHTNESS_TVSIM != cBr)
-              SetBrightness(BRIGHTNESS_TVSIM);
+              bLEDChanged |= SetBrightness(BRIGHTNESS_TVSIM);
       }
   }
 
@@ -412,6 +423,8 @@ void updateBrightnessAndColor(bool force=false)
   {
       SaveTheConfig();
   }
+
+  return bLEDChanged;
 }
 
 
@@ -782,86 +795,90 @@ void toggleMode(ClockMode mode)
   }
 }
 
-void HandleWebSvrReq(WebServer::wsRequest request)
+bool HandleWebSvrReq(WebServer::wsRequest* request)
 {
-  if(!request.HasColorChanged(true) && !request.HasColorChanged(false) && !request.HasBrightnessChanged() && !request.HasNtpChanged() &&
-      !request.m_bEnableConfigMode && clockMode == request.m_mode && !request.HasDialectChanged() && 
-      !request.HasNightChanged() && !request.m_bInverseDisplay && !request.m_bSetSunRise && !request.HasTvChanged())
-    return;
+  if(!request->HasColorChanged(true) && !request->HasColorChanged(false) && !request->HasBrightnessChanged() && !request->HasNtpChanged() &&
+      !request->m_bEnableConfigMode && clockMode == request->m_mode && !request->HasDialectChanged() && 
+      !request->HasNightChanged() && !request->m_bInverseDisplay && !request->m_bSetSunRise && !request->HasTvChanged())
+    return false;
 
   bool bSaveConfigChanges = false;
+  bool bLEDChanges = false;
   
   serialTrace.Log(T_DEBUG, "HandleWebSvrReq - user input detected.");
 
-  if(request.HasColorChanged(true) || request.HasColorChanged(false))
+  if(request->HasColorChanged(true) || request->HasColorChanged(false))
   {
     serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock color change requested. cDay = r%dg%db%d, cNight = r%dg%db%d", 
-        request.GetColor().r, request.GetColor().g, request.GetColor().b,
-        request.GetColorN().r, request.GetColorN().g, request.GetColorN().b);
-    dayColor = request.GetColor();
-    nightColor = request.GetColorN();
+        request->GetColor().r, request->GetColor().g, request->GetColor().b,
+        request->GetColorN().r, request->GetColorN().g, request->GetColorN().b);
+    dayColor = request->GetColor();
+    nightColor = request->GetColorN();
     bSaveConfigChanges = true;
     // clock update is only needed, if the color for the current time has been changed
-    if (IsNight(time_t (CE.toLocal(now()))) && request.HasColorChanged(false))
+    if (IsNight(time_t (CE.toLocal(now()))) && request->HasColorChanged(false))
     {
         clock.setColor(nightColor);
         clock.update(true);
+        bLEDChanges = true;
     }
-    else if (request.HasColorChanged(true))
+    else if (request->HasColorChanged(true))
     {
         clock.setColor(dayColor);
         clock.update(true);
+        bLEDChanges = true;
     }
   }
 
-  if(request.HasBrightnessChanged())
+  if(request->HasBrightnessChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock brightness change requested. Br = %d, BrDay = %d, BrNight = %d", request.GetBrightness(), request.GetBrightnessDay(), request.GetBrightnessNight());
-    brightness = request.GetBrightness();
-    brightnessDay = request.GetBrightnessDay();
-    brightnessNight = request.GetBrightnessNight();
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - clock brightness change requested. Br = %d, BrDay = %d, BrNight = %d", request->GetBrightness(), request->GetBrightnessDay(), request->GetBrightnessNight());
+    brightness = request->GetBrightness();
+    brightnessDay = request->GetBrightnessDay();
+    brightnessNight = request->GetBrightnessNight();
     FastLED.setBrightness(brightness);
     FastLED.show();
     bSaveConfigChanges = true;
   }
 
-  if(request.HasNtpChanged())
+  if(request->HasNtpChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Ntp change requested. New Ntp Server %s", request.GetNtp().c_str());
-    SetNewNtp(request.GetNtp().c_str());
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Ntp change requested. New Ntp Server %s", request->GetNtp().c_str());
+    SetNewNtp(request->GetNtp().c_str());
     bSaveConfigChanges = true;
   }
   
-  if(request.m_bEnableConfigMode)
+  if(request->m_bEnableConfigMode)
   {
     serialTrace.Log(T_INFO, "HandleWebSvrReq - Config Mode requested.");
     IsConfigMode = true;
     bSaveConfigChanges = true;
   }
   
-  if(clockMode != request.m_mode)
+  if(clockMode != request->m_mode)
   {
-    serialTrace.Log(T_INFO, "HandleWebSvrReq - Toggle Test Mode requested. New Mode %d", request.m_mode);
-    toggleMode(request.m_mode);
+    serialTrace.Log(T_INFO, "HandleWebSvrReq - Toggle Test Mode requested. New Mode %d", request->m_mode);
+    toggleMode(request->m_mode);
   }
 
-  if(request.HasDialectChanged())
+  if(request->HasDialectChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Toggle Dailect requested. New Dialect %d", request.GetDialect());
-    clock.SetDialect(request.GetDialect());
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Toggle Dailect requested. New Dialect %d", request->GetDialect());
+    clock.SetDialect(request->GetDialect());
     clock.update(true);
+    bLEDChanges = true;
     bSaveConfigChanges = true;
   }
 
-  if(request.HasNightChanged())
+  if(request->HasNightChanged())
   {
-    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Night change requested. NightStart = %d, NightEnd = %d", request.GetNightStart(), request.GetNightEnd());
-    nightStart = request.GetNightStart();
-    nightEnd = request.GetNightEnd();
+    serialTrace.Log(T_DEBUG, "HandleWebSvrReq - Night change requested. NightStart = %d, NightEnd = %d", request->GetNightStart(), request->GetNightEnd());
+    nightStart = request->GetNightStart();
+    nightEnd = request->GetNightEnd();
     bSaveConfigChanges = true;
   }
 
-  if (request.m_bInverseDisplay && eCM_clock == clockMode)
+  if (request->m_bInverseDisplay && eCM_clock == clockMode)
   {  
     serialTrace.Log(T_INFO, "Enable/Disable Inverse Clock Mode");
     clock.SetInverse();
@@ -870,7 +887,7 @@ void HandleWebSvrReq(WebServer::wsRequest request)
     FastLED.show();
   }
 
-  if (request.m_bSetSunRise)
+  if (request->m_bSetSunRise)
   {
     serialTrace.Log(T_INFO, "Enable/Disable Sunrise Clock Mode");
     if (bSunRise)
@@ -881,11 +898,11 @@ void HandleWebSvrReq(WebServer::wsRequest request)
     bSaveConfigChanges = true;
   }
 
-  if (request.HasTvChanged())
+  if (request->HasTvChanged())
   {
-      serialTrace.Log(T_DEBUG, "HandleWebSvrReq - TVSim change requested. TvStart = %d, TvEnd = %d", request.GetTvStart(), request.GetTvEnd());
-      tvStart = request.GetTvStart();
-      tvEnd = request.GetTvEnd();
+      serialTrace.Log(T_DEBUG, "HandleWebSvrReq - TVSim change requested. TvStart = %d, TvEnd = %d", request->GetTvStart(), request->GetTvEnd());
+      tvStart = request->GetTvStart();
+      tvEnd = request->GetTvEnd();
       bSaveConfigChanges = true;
   }
 
@@ -900,25 +917,31 @@ void HandleWebSvrReq(WebServer::wsRequest request)
 //------------------------------------------------------------------------------
 // SUN RISE implemenation
 // returns the number of milli seconds until the next call is required
-// bDone == false as long as the sun rise processing is needed
-static uint32_t sr_progress = 0;
+static uint8_t sr_progress = 0;
 
-uint32_t HandleSunRise()
+unsigned long HandleSunRise(bool& clockChanged)
 {
+    clockChanged = false;
+
     //serialTrace.Log(T_INFO, "HandleSunRise: progress = '%d'", sr_progress);
+    static bool firstEntry1 = false;
+    static bool firstEntry2 = false;
 
     if (0 == sr_progress)
     {
-        ++sr_progress;
-        clock.setBgColor(color_WarmWhile);
+        serialTrace.Log(T_INFO, "HandleSunRise: Brightness %d Color sr_start", sr_progress);
+        sr_progress = brightnessNight;
+        clock.setBgColor(color_WarmWhite_sr_start);
         clock.SetDualColor();
         clock.update(true);
         FastLED.setBrightness(sr_progress);
+        clockChanged = true;
         return ONE_SUNRISE_STEP_IN_MS;
     }
     
     ++sr_progress;
     FastLED.setBrightness(sr_progress);
+    clockChanged = true;
 
     if (sr_progress < 2)
     {
@@ -926,17 +949,33 @@ uint32_t HandleSunRise()
     }
     else if (sr_progress < 5)
     {
+        if (false == firstEntry1)
+        {
+            firstEntry1 = true;
+        }
+
         return ONE_SUNRISE_STEP_IN_MS + 5000;
     }
     else if (sr_progress < 10)
     {
-        return ONE_SUNRISE_STEP_IN_MS + 2000;
+        if (false == firstEntry2)
+        {
+            firstEntry1 = false;
+            serialTrace.Log(T_INFO, "HandleSunRise: Brightness %d Color final warm white", sr_progress);
+            clock.setBgColor(color_WarmWhite);
+            clock.update(true);
+            firstEntry2 = true;
+        }
+        return ONE_SUNRISE_STEP_IN_MS;
     }
 
     if (sr_progress >= NUM_SUNRISE_STEPS)
     {
         // the last step has been achieved
+        serialTrace.Log(T_INFO, "HandleSunRise: End of sunrise", sr_progress);
         StopSunRise(false);
+        firstEntry1 = false;
+        firstEntry2 = false;
         return 0;
     }
 
@@ -948,10 +987,9 @@ void StopSunRise(bool bShowChange)
 {
     if (bRunSunRise)
     {
-        serialTrace.Log(T_INFO, "StopSunRise: stop sunrise");
         sr_progress = 0;
         bRunSunRise = false;
-        //serialTrace.Log(T_INFO, "StopSunRise: bRunSunRise = false");
+        serialTrace.Log(T_INFO, "StopSunRise: bRunSunRise = false");
         holdTime = 0;
         clock.setBgColor(CRGB::Black);
         clock.SetDualColor();
@@ -1177,41 +1215,68 @@ void setup ()
 }
 
 
+// in case FastLED.show is called with a very high frequency the ESP cores.
+// the core is usually some wrong instruction, stack corruption e.g.
+// there we use this flag which indicates whether any LED update (brightness or color) is needed
+// BTW: This core is ost likely caused by insufficient power delivery.
+// A power adapter accepting a higher load should do it  as well.
+bool bBrOrColUpdateRequired = false;
+
 void loop () 
 {
+  static bool bFirstTestCall = false;
+
   if (timeSet != timeStatus())
   {
     serialTrace.Log(T_ERROR, "Time is not set. The time & date are unknown.");
     //TODO what shall we do in this case? 
   }
 
+  bBrOrColUpdateRequired = false;
+
   if (!bRunSunRise)
   {
       //serialTrace.Log(T_INFO, "loop: bRunSunRise = false");
-      updateBrightnessAndColor();
+      bBrOrColUpdateRequired |= updateBrightnessAndColor();
   }
 
   if(eCM_clock == clockMode)
   {
-    bool changed = clock.update();
+    bFirstTestCall = false;
+
+    bBrOrColUpdateRequired |= clock.update();
 
     if (bRunSunRise)
     {
         if (holdTime <= millis())
         {
-            holdTime = millis() + HandleSunRise();
-            changed = true;
-        }
+            bool changed = false;
+            holdTime = millis() + HandleSunRise(changed);
+//            serialTrace.Log(T_INFO, "sun rise step %d, clock changed = %s", sr_progress, changed ? "true" : "false");
+            bBrOrColUpdateRequired |= changed;
+        }        
     }
     
-    ani.transform(leds, leds_target, NUM_LEDS, changed);
+    bBrOrColUpdateRequired |= ani.transform(leds, leds_target, NUM_LEDS, bBrOrColUpdateRequired);
     
-    FastLED.show();
+    // show updates color and brightness
+    if (bBrOrColUpdateRequired)
+    {
+        FastLED.show();
+    }
+
   }
   else if (eCM_test == clockMode)
-      FastLED.show();
+  {
+      if (!bFirstTestCall)
+      {
+          bFirstTestCall = true;
+          FastLED.show();
+      }
+  }
   else if (eCM_tv == clockMode || eCM_tv_auto == clockMode)
   {
+      bFirstTestCall = false;
       // the esp has a software and a hardware watchdog
       // while we can disable and reset the software watchdog
       // ESP.wdtDisable();
@@ -1247,9 +1312,17 @@ void loop ()
 #endif
 
 #ifdef ENABLE_LOCAL_WEBSERVER
-  WebServer::wsRequest req(dayColor, nightColor, brightnessNight, brightnessDay, brightness, ntp_server, nightStart, nightEnd, clock.GetDialect(), tvStart, tvEnd);
-  wsrv.Run(req);
-  HandleWebSvrReq(req);
+  {
+      WebServer::wsRequest* req = new WebServer::wsRequest(dayColor, nightColor, brightnessNight, brightnessDay, brightness, ntp_server, nightStart, nightEnd, clock.GetDialect(), tvStart, tvEnd);
+      wsrv.Run(*req);
+      if (HandleWebSvrReq(req))
+      {
+          ani.transform(leds, leds_target, NUM_LEDS, true);
+          FastLED.show();
+      }
+
+      delete req; req = 0;
+  }
 #endif
 
   // reconnect WiFiManager, if needed

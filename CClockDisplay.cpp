@@ -291,6 +291,7 @@ bool CClockDisplay::update(bool force)
             //  }
 
             time_t local(0 == m_pTZ ? utc : m_pTZ->toLocal(utc));
+
             display_time(hour(local), minute(local), m_bInverse);
 
             m_currentMinute = minute();

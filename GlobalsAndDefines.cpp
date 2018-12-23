@@ -19,7 +19,9 @@ CRGB leds_target[NUM_LEDS];
 
 CClockDisplay clock;
 
-CRGB color_WarmWhile(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
+CRGB color_WarmWhite(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
+CRGB color_WarmWhite_sr_start(230, 90, 25);
+
 CRGB nightColor(DEFAULT_RED, 0, 0);
 CRGB dayColor(DEFAULT_RED, DEFAULT_GREEN, DEFAULT_BLUE);
 
@@ -49,7 +51,7 @@ short tvVari2 = 0;
 bool bSunRise = false;
 bool bRunSunRise = false;
 
-uint32_t holdTime = 0;
+unsigned long holdTime = 0;
 
 bool bIsDay = true;
 
@@ -198,11 +200,13 @@ bool IsTvSimTime(time_t local)
     
 }
 
+// note this method is only used to detect the start time, so it is good enough to check for two minutes range, not three
+// actually three is too much, we need one interval, e.g. second less, but do not compare seconds.
 bool IsStillSunriseTime(time_t local)
 {
     //serialTrace.Log(T_INFO, "IsStillSunriseTime: GetMinOfTime '%d', nightEnd '%d', sunrise end '%d'", GetMinOfTime(local), nightEnd, ((ONE_SUNRISE_STEP_IN_MS / 1000 * NUM_SUNRISE_STEPS) / 60));
     // we have the time in MINUTES!!!, so can simply compare with the max milli seconds the sunrise will need
-    return (GetMinOfTime(local) < (nightEnd + ((ONE_SUNRISE_STEP_IN_MS / 1000 * NUM_SUNRISE_STEPS) / 60)));
+    return (GetMinOfTime(local) < (nightEnd + ((ONE_SUNRISE_STEP_IN_MS * NUM_SUNRISE_STEPS) / 1000  / 60)));
 }
 
 /*
@@ -216,6 +220,7 @@ char ntp_server[50] = DEFAULT_NTP;
 char blynk_token[33] = "YOUR_BLYNK_TOKEN";
 
 bool IsConfigMode = false;
+
 ClockMode clockMode = eCM_clock;
 
 char station_name[50] = DEFAULT_STATIONNAME;

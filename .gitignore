@@ -3,10 +3,17 @@
 *.ko
 *.obj
 *.elf
+*.iobj
 
 # Precompiled Headers
 *.gch
 *.pch
+*.ilk
+*.suo
+*.buildinfo
+*.sln
+*.user
+*.filters
 
 # Libraries
 *.lib
@@ -19,6 +26,8 @@
 *.so
 *.so.*
 *.dylib
+*.pdb
+*.ipdb
 
 # Executables
 *.exe
@@ -27,7 +36,13 @@
 *.i*86
 *.x86_64
 *.hex
+*.bin
 
 # Debug files
 *.dSYM/
 *.su
+*.d
+
+__vm/*.*
+Release/*.*
+Debug/*.*

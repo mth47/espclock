@@ -1,10 +1,11 @@
 #include "CFadeAnimation.h"
+#include "GlobalsAndDefines.h"
 
 CFadeAnimation::CFadeAnimation(): previousMillis(0), interval(30) {}
 
 CFadeAnimation::~CFadeAnimation() {}
 
-const uint8_t fadespeed[256] = {  1,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+/*const uint8_t fadespeed[256] = {  1,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
                                  20, 21, 22, 23, 24, 25, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
                                  39, 40, 41, 42, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 53, 54, 55, 56,
                                  57, 58, 59, 60, 61, 62, 62, 63, 64, 65, 66, 67, 68, 69, 69, 70, 71, 72, 73, 74,
@@ -16,14 +17,15 @@ const uint8_t fadespeed[256] = {  1,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11,
                                 140,141,141,141,142,142,142,142,143,143,143,143,144,144,144,144,144,144,144,145,
                                 145,145,145,145,145,145,145,145,145,144,144,144,144,144,143,143,143,142,142,142,
                                 141,141,140,139,139,138,137,137,136,135,134,132,131,130,129,127,125,124,122,120,
-                                117,115,112,109,106,102, 98, 93, 87, 81, 73, 63, 50, 32, 16,  8};
+                                117,115,112,109,106,102, 98, 93, 87, 81, 73, 63, 50, 32, 16,  8};*/
 
 
-const uint8_t mylog[68] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 27,
-30, 33, 36, 39, 42, 46, 49, 53, 56, 60, 64, 68, 72, 77, 81, 86, 90, 95, 100, 105, 110, 116,
-121, 127, 132, 138, 144, 150, 156, 163, 169, 176, 182, 189, 196, 203, 210, 218, 225,
-233, 240, 248, 255};
+static const uint8_t MYLOG_SIZE = 68;
 
+const uint8_t mylog[MYLOG_SIZE] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 27,
+                                    30, 33, 36, 39, 42, 46, 49, 53, 56, 60, 64, 68, 72, 77, 81, 86, 90, 95, 100, 105, 110, 116,
+                                    121, 127, 132, 138, 144, 150, 156, 163, 169, 176, 182, 189, 196, 203, 210, 218, 225,
+                                    233, 240, 248, 255};
 
 //inline uint8_t logdif8(uint8_t dif)
 //{
@@ -41,11 +43,21 @@ const uint8_t mylog[68] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16,
 
 bool CFadeAnimation::transform(CRGB* current, CRGB* target, int num_leds, bool changed)
 {
-  bool bchanged(false);
+  bool bchanged = false;
 
   static uint8_t n = 0;
 
-  if(changed) n = 0;
+  if (changed) n = 0;
+
+  // prevent access violations
+  if (n >= MYLOG_SIZE)
+  {
+      //serialTrace.Log(T_INFO, "CFadeAnimation::transform - n >= MYLOG_SIZE");
+      return false;
+  }
+
+  /*if(n >= 28)
+      serialTrace.Log(T_INFO, "CFadeAnimation::transform - n = %d. -> Core?", n);*/
 
   unsigned long currentMillis = millis();
   if(currentMillis - previousMillis >= interval)
@@ -55,9 +67,11 @@ bool CFadeAnimation::transform(CRGB* current, CRGB* target, int num_leds, bool c
     {
       if(current[i] != target[i])
       {
+        
+        // serialTrace.Log(T_INFO, "CFadeAnimation::transform - n = %d", n);
         //nblend(current[i], target[i], mylog[n]);
-
-
+        // scale16by8  computes  i * (scale / 256) 
+    
         current[i].r = sqrt16(scale16by8( current[i].r * current[i].r, (255-mylog[n]) ) + scale16by8( target[i].r * target[i].r, mylog[n] ));
         current[i].g = sqrt16(scale16by8( current[i].g * current[i].g, (255-mylog[n]) ) + scale16by8( target[i].g * target[i].g, mylog[n] ));
         current[i].b = sqrt16(scale16by8( current[i].b * current[i].b, (255-mylog[n]) ) + scale16by8( target[i].b * target[i].b, mylog[n] ));
@@ -65,6 +79,7 @@ bool CFadeAnimation::transform(CRGB* current, CRGB* target, int num_leds, bool c
         //current[i].g = qadd8(target[i].g*(mylog[n]/255.0), current[i].g*(mylog[63-n]/255.0));
         //current[i].b = qadd8(target[i].b*(mylog[n]/255.0), current[i].b*(mylog[63-n]/255.0));
 
+        
 
         //current[i].g += (target[i].g-current[i].g)*mylog[n]/255;
         //current[i].b += (target[i].b-current[i].b)*mylog[n]/255;
@@ -101,10 +116,14 @@ bool CFadeAnimation::transform(CRGB* current, CRGB* target, int num_leds, bool c
         bchanged = true;
       }
     }
-    if(!bchanged) n = 0;
-    else if(n < 63) n++;
+
+    if (!bchanged)
+    {
+        n = 0;
+    }
+    else if(n < MYLOG_SIZE-5) n++;
   }
 
-  return(bchanged);
+  return bchanged;
 }
 

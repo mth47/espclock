@@ -16,9 +16,10 @@
 #define ENABLE_LOCAL_WEBSERVER
 
 // Enables Serial Tracing
-//#define TRACE
+#define TRACE
 // Enables Debug Traces, in VS this define is set by project settings in Arduino IDE not
 //#define _DEBUG
+
 
 #include "Trace.h"
 extern Trace serialTrace;
@@ -65,7 +66,9 @@ extern CRGB leds_target[NUM_LEDS];
 #define DEFAULT_GREEN 127
 #define DEFAULT_BLUE 36
 
-extern CRGB color_WarmWhile;
+extern CRGB color_WarmWhite;
+extern CRGB color_WarmWhite_sr_start;
+extern CRGB color_WarmWhite_sr_middle;
 extern CRGB nightColor;
 extern CRGB dayColor;
 
@@ -83,11 +86,11 @@ extern CClockDisplay clock;
 #define DEFAULT_TV_END (uint16_t) 23 * 60 + 45
 
 
-#ifdef SMALLCLOCK
+//#ifdef SMALLCLOCK
     #define BRIGHTNESS_TVSIM 100
-#else
-    #define BRIGHTNESS_TVSIM 80
-#endif
+//#else
+//    #define BRIGHTNESS_TVSIM 80
+//#endif
 #define BRIGHTNESS_TEST 5
 
 extern uint8_t brightnessNight;
@@ -104,10 +107,10 @@ extern bool bRunSunRise;
 // ONE_SUNRISE_STEP_IN_MS * NUM_SUNRISE_STEPS == overal time from zero to max brightness
 // 5 min == 5 x 60 x 1000 milli seconds
 // brightness can be adjusted from 0 to 100 only
-#define ONE_SUNRISE_STEP_IN_MS 1500
+#define ONE_SUNRISE_STEP_IN_MS 2000
 #define NUM_SUNRISE_STEPS 100
 
-extern uint32_t holdTime;
+extern unsigned long holdTime;
 
 extern bool bIsDay;
 
