@@ -1,11 +1,11 @@
 ## **espclock**
 ### **Features**
 *	OPC control
-*	Blync control
+*	Blynk control
 *	Color and Brightness Selection
 *	Day-Night Switch
 *	Compliler switch for OPC, listening on port 7890
-*	Compiler switch for Blynk, connects to blync-cloud.com:8442
+*	Compiler switch for Blynk, connects to blynk-cloud.com:8442
 *	Level based serial tracing for debugging purposes, compiler switch for runtime mode
 *	Configuration permanently safed on ESP, not on only Blynk server
 *	Locally hosted WebServer incl. compiler switch, listens on port 80 (http)
@@ -43,7 +43,7 @@
 
 ### **Notes:**
 1.	This clock does not require internet access.
-	Depending on the enabled services (e.g. NTP, OPC, Blync) different ports are opened and connections established.
+	Depending on the enabled services (e.g. NTP, OPC, Blynk) different ports are opened and connections established.
 	In case the local router or any other device in the LAN can act as ntp server and OPC and Blynk disabled 
 	no incoming or outgoing internet access is needed.
 2.	The first start and every subsequent start where no WLAN connection can be established, the clock will start its own

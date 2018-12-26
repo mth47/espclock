@@ -10,7 +10,7 @@
 #define SMALLCLOCK
 // Enable to control all LEDs indidually via OPC, e.g. with Processing IDE (PC or cell phone app) and OPC libarary, opens port 7890
 // #define ENABLE_OPC
-// Enable Blync to control the clock via Blync Handy App, bynk account needed, connects to blync-cloud.com:8442           
+// Enable Blynk to control the clock via Blynk Handy App, bynk account needed, connects to blynk-cloud.com:8442           
 // #define ENABLE_BLYNK
 // Enable local WebServer
 #define ENABLE_LOCAL_WEBSERVER
@@ -119,6 +119,7 @@ uint16_t GetMinOfTime(time_t t);
 uint8_t GetHourOfDayMin(uint16_t m);
 uint8_t GetMinOfDayMin(uint16_t m);
 bool IsValidHour(uint8_t h);
+bool IsValidMin(uint8_t m);
 bool IsValidDayMin(uint16_t m);
 // requires nightStart and nightEnd in minutes of the day
 bool IsNight(time_t local);

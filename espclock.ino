@@ -1186,7 +1186,7 @@ void setup ()
   serialTrace.Log(T_DEBUG, "Blynk configured");
 
   if(false == Blynk.connect(BLYNK_CONNECT_TIMEOUT_SEC * 333)) // Blynk.connect is in 3ms units.
-    serialTrace.Log(T_WARNING, "No connection to Blync Server after %d seconds. Blynk app will not work before the connection has been extablished.", BLYNK_CONNECT_TIMEOUT_SEC);
+    serialTrace.Log(T_WARNING, "No connection to Blynk Server after %d seconds. Blynk app will not work before the connection has been extablished.", BLYNK_CONNECT_TIMEOUT_SEC);
   else
     serialTrace.Log(T_INFO, "Connected to Blynk server.");
 

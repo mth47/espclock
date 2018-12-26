@@ -57,6 +57,12 @@ bool bIsDay = true;
 
 uint16_t GetMinOfTime(int8_t hour, int8_t min)
 {
+  if (!IsValidHour(hour))
+    hour = 0;
+
+  if (!IsValidMin(min))
+    min = 0;
+
   return (hour * 60) + min;
 }
 
@@ -67,11 +73,17 @@ uint16_t GetMinOfTime(time_t t)
 
 uint8_t GetHourOfDayMin(uint16_t m)
 {
+  if (m < 0)
+    return 0;
+
   return m / 60;  
 }
 
 uint8_t GetMinOfDayMin(uint16_t m)
 {
+  if (m < 0)
+    return 0;
+
   return m % 60;  
 }
 
@@ -83,9 +95,17 @@ bool IsValidHour(uint8_t h)
   return false;  
 }
 
+bool IsValidMin(uint8_t min)
+{
+  if (0 <= min && 59 >= min)
+    return true;
+
+  return false;
+}
+
 bool IsValidDayMin(uint16_t m)
 {
-  if(IsValidHour(GetHourOfDayMin(m)) && 60 >= GetMinOfDayMin(m))
+  if(IsValidHour(GetHourOfDayMin(m)) && IsValidMin(GetMinOfDayMin(m)))
     return true;
 
   return false;
